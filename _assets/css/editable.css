@@ -1,0 +1,66 @@
+/* Tus ediciones van aquí; el CSS oficial queda intacto. */
+[data-aos]{opacity:1!important;transform:none!important;transition:none!important}
+/* Hover de los ítems de menú (en Radix lo da data-highlighted, que sin JS no existe). */
+.nw-menu-item:hover{background:var(--color-accent,#f4f4f5)}
+
+/* Menú principal: ítem de la sección actual. */
+header [aria-current="page"], header button[aria-current="true"]{box-shadow:inset 0 -2px 0 var(--color-JIC-violet-900,#28123b);padding-bottom:2px}
+
+/* El logo no se encoge cuando el menú (7 entradas) se aprieta: se reduce el menú, no el logo. */
+header img[alt="JIC"]{flex-shrink:0;max-width:none}
+header .md\:flex.flex-row{flex-wrap:nowrap}
+@media (min-width:1024px) and (max-width:1399px){
+  header img[alt="JIC"]{width:210px}
+  header .md\:flex.flex-row{gap:1rem}
+  header .md\:flex.flex-row a,header .md\:flex.flex-row button{font-size:.875rem;white-space:nowrap}
+  header>div{gap:1.25rem;padding-right:.5rem}
+}
+
+/* Tarjeta de noticia destacada: sin pegar a los bordes de la pantalla; esquinas completas y margen lateral. */
+section.relative.w-full.overflow-hidden > div.mx-auto.h-full{padding-inline:clamp(1rem,5vw,4rem)}
+section.relative.w-full.overflow-hidden img.rounded-r-3xl,section.relative.w-full.overflow-hidden img.rounded-l-3xl{border-radius:1.5rem}
+
+/* Home: el contenido arranca pegado al menú, sin franja blanca arriba. */
+div.flex.flex-col.pt-4.pb-28.gap-12{padding-top:0}
+
+/* Icon font del SDK (foundations 4.3.0): solo los glifos de deporte que usa el demo. */
+@font-face{font-family:naotech-icons;src:url("../media/naotech-icons.woff") format("woff");font-weight:normal;font-style:normal;font-display:block}
+[class^="naotech-icon-"]{font-family:naotech-icons;font-style:normal;font-weight:normal;-webkit-font-smoothing:antialiased;line-height:1}
+.naotech-icon-mini-basketball:before{content:'\ea0f'}
+.naotech-icon-soccer:before{content:'\ea02'}
+.naotech-icon-futsal:before{content:'\ea00'}
+.naotech-icon-mini-volleyball:before{content:'\ea11'}
+.naotech-icon-athletics:before{content:'\e9e6'}
+.nwx-bi i,.nwx-lic i{font-size:1.75rem}
+
+/* Home: las celdas de cada slide (imagen y texto) van sin paddings */
+section.relative.w-full > div.mx-auto > div.flex > div.flex.items-center.justify-center.relative{padding:0!important}
+
+/* Home: el contador de promociones queda centrado verticalmente en el banner */
+@media (min-width:760px){div[class*="min-[760px]:top-5"]{top:50%!important;transform:translateY(-50%)}}
+
+/* Títulos de sección del home */
+.nwx-h2s{font-size:2.5rem!important;line-height:2.5rem!important;font-weight:700!important}
+
+/* Home: gap de 24px entre imagen y texto en todos los slides */
+section.relative.w-full > div.mx-auto > div.flex{gap:1.5rem!important}
+
+/* Sección de documentos, opción D: dos destacados y seis tarjetas */
+.nwx-docs{max-width:72rem;margin:0 auto;padding:0 1rem;font-family:Inter,inherit}
+.nwx-docs-big{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.nwx-docs-small{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px}
+.nwx-docs-card{display:flex;text-decoration:none;cursor:pointer;font:inherit;text-align:left;transition:background-color .2s,border-color .2s}
+.nwx-docs-card--big{flex-direction:column;justify-content:space-between;min-height:150px;padding:24px;border:0;border-radius:20px;background:var(--color-JIN6-foundations-violeta,#602a8c);color:#fff}
+.nwx-docs-card--big:hover{background:#4d2174}
+.nwx-docs-card--big:focus-visible{outline:3px solid #28123b;outline-offset:2px}
+.nwx-docs-card--big .nwx-docs-icon{width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.16)}
+.nwx-docs-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.nwx-docs-card--big .nwx-docs-name{font-size:20px;line-height:1.25;font-weight:700}
+.nwx-docs-foot svg{flex:none}
+.nwx-docs-icon{display:flex;align-items:center;justify-content:center;flex:none}
+.nwx-docs-card--sm{align-items:center;gap:12px;min-height:64px;padding:12px 16px;border:1px solid #e4dff0;border-radius:14px;background:#fff;color:#28123b;font-size:15px;font-weight:600}
+.nwx-docs-card--sm .nwx-docs-icon{width:36px;height:36px;border-radius:10px;background:#efe9f8;color:#602a8c}
+.nwx-docs-card--sm:hover{border-color:#602a8c}
+.nwx-docs-card--sm:focus-visible{outline:3px solid #602a8c;outline-offset:2px}
+@media (max-width:768px){.nwx-docs-big{grid-template-columns:1fr}.nwx-docs-small{grid-template-columns:1fr 1fr}}
+@media (max-width:639px){.nwx-docs-small{grid-template-columns:1fr}}
