@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Sin matrix ni `name:`: el ruleset de la org exige el contexto literal `check`.
+  # Demo estática sin package.json: web-quality@v1 no aplica (hace npm ci).
+  check:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - name: Sintaxis JS
+        run: find . -path ./.git -prune -o -name '*.js' -print0 | xargs -0 -n1 node --check
