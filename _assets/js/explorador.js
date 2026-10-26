@@ -67,7 +67,7 @@
   const FASE = D.fases.filter((f) => f.clave === faseNow())[0] || D.fases[0];
   /* Las lentes ven solo su fase; Deportistas no depende de la fase y nunca ve la muestra. */
   const PRUEBAS = D.pruebas.filter((p) => (LENS ? p.faseId === FASE.id && (!p.ejemplo || DEMO) : !p.ejemplo));
-  const depsFase = () => D.deportes.filter((d) => (!ENT.e || d.tipo === ENT.e) && PRUEBAS.some((q) => q.deporteId === d.id));
+  const depsFase = () => D.deportes.filter((d) => (!FASE.regiones || !ENT.e || d.tipo === ENT.e) && PRUEBAS.some((q) => q.deporteId === d.id));
   /* Atletismo con un solo deporte en la final entra directo a sus pruebas; conjunto entra por Deportes. */
   /* En la final, un evento con un solo deporte en el catálogo (Atletismo) salta Deportes; sale del catálogo, no de los datos. */
   const depsCat = () => D.deportes.filter((d) => d.tipo === ENT.e);
@@ -85,7 +85,8 @@
 
   /* ── Contexto (filtros) ──────────────────────────────────── */
   const ok = (p, c) => {
-    if (c.tipo && DEPO[p.deporteId].tipo !== c.tipo) return false;
+    /* En la final el evento no recorta: la lista trae todos los deportes. */
+    if (c.tipo && FASE.regiones && DEPO[p.deporteId].tipo !== c.tipo) return false;
     if (c.deporte && p.deporteId !== c.deporte) return false;
     if (c.prueba && p.disciplina !== c.prueba) return false;
     if (c.sexo && p.sexo !== c.sexo) return false;
@@ -670,7 +671,7 @@
       levels: [{ t: "sexo", label: "Sexo", seg: true, opts: [["sexo", "H", "Hombre"], ["sexo", "M", "Mujer"], ["sexo", "MX", "Mixto"]] }].concat(lvC) };
     if (LENS) {
       /* Prueba y Partido se navegan por la grilla y el camino, no por filtros (DC-155/176/177/181). */
-      const pq = PBY[S.p], deps = D.deportes.filter((d) => (!ENT.e || d.tipo === ENT.e) && PRUEBAS.some((q) => q.deporteId === d.id && (!c.regional || q.regionalId === c.regional)));
+      const pq = PBY[S.p], deps = D.deportes.filter((d) => (!FASE.regiones || !ENT.e || d.tipo === ENT.e) && PRUEBAS.some((q) => q.deporteId === d.id && (!c.regional || q.regionalId === c.regional)));
       const spL = { title: "Qué deporte", total: 1, n: c.deporte ? 1 : 0, levels: [{ t: "deporte", label: "Deporte", opts: deps.map((d) => ["deporte", d.id, d.nombre]) }] };
       const sxL = pq ? { title: "Categoría", total: 1, n: 1, fixed: pq, levels: [] } : sx;
       /* En la final no hay dónde que elegir: el carril «Dónde» no se muestra y la franja queda en dos. */
@@ -720,7 +721,7 @@
     const toB = level() === entryLvl() ? "" : hrefOf(LV.B());
     /* Subir por el camino conserva los filtros de sexo y categoría vigentes. */
     const keep = (o) => Object.assign({ tipo: ENT.e }, o, S.c.sexo ? { sexo: S.c.sexo } : null, S.c.cat ? { cat: S.c.cat } : null, S.c.inst ? { inst: S.c.inst } : null);
-    const it = [["Viendo", VISTA, ""]].concat(ENT.e ? [["Evento", EVT_LABEL[ENT.e] || "", toB]] : [], [["Fase", FASE_LABEL[faseNow()] + (reg ? "" : " · Bogotá"), toB]]);
+    const it = [["Viendo", VISTA, ""]].concat(ENT.e && FASE.regiones ? [["Evento", EVT_LABEL[ENT.e] || "", toB]] : [], [["Fase", FASE_LABEL[faseNow()] + (reg ? "" : " · Bogotá"), toB]]);
     if (reg && S.todas) it.push(["Regional", "Todas", hrefOf(LV.T())]);
     if (r) it.push(["Regional", r.nombre, hrefOf({ c: keep({ regional: r.id }) })]);
     if (r && S.c.depto && DPT[S.c.depto]) it.push(["Departamento", DPT[S.c.depto].nombre, hrefOf({ c: keep({ regional: r.id, depto: S.c.depto }) })]);
