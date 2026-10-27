@@ -14,18 +14,30 @@
   const FINAL_PUBLICADA = true;
   window.NWX_FINAL_PUBLICADA = FINAL_PUBLICADA;
   const FINAL_AYUDA = "Del 13 al 30 de noviembre · Bogotá";
-  const DEMO = new URLSearchParams(location.search).get("demo") === "nac" && /^(localhost|127\.0\.0\.1|)$/.test(location.hostname);
-  const nac = (lente, e) => EXP + lente + "&e=" + e + "&f=NAC" + (DEMO ? "&demo=nac" : "");
-  const final = (lente, e) => (FINAL_PUBLICADA ? ["Fase final nacional", nac(lente, e)] : ["Fase final nacional", "", false, true]);
+  const DEMO = true;
+  const dest = (lente, e, f) => EXP + lente + "&e=" + e + "&f=" + f + (f === "NAC" && DEMO ? "&demo=nac" : "");
   /* Las dos entradas abren el mismo popover y llevan al explorador ya filtrado por evento y fase. */
   const ICO_ATL = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><path d="M9 2h6M12 14l3-3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="12" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>', ICO_BAL = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M2 12h20M12 2v20M5 5c4 3 4 11 0 14M19 5c-4 3-4 11 0 14" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>';
-  const fases = (lente) => [["#h", "Atletismo"], ["Fase regional", EXP + lente + "&e=individual&f=REG"], final(lente, "individual"), ["#d"], ["#h", "Conjunto"], ["Fase regional", EXP + lente + "&e=conjunto&f=REG"], final(lente, "conjunto")];
+  /* Primer criterio la fase; debajo, los dos eventos. Cada enlace conserva evento y fase como contexto fijo del explorador. */
+  const GRUPOS = [["REG", "Fase regional"], ["NAC", "Fase final nacional"]];
+  const EVENTOS = [["individual", "Atletismo", ICO_ATL], ["conjunto", "Deportes de conjunto", ICO_BAL]];
+  const VIOLETA = "var(--color-JIN6-foundations-violeta,#602a8c)";
+  const _q = new URLSearchParams(location.search), _en = { dia: "eventos", "calendario-resultados": "resultados" }[_q.get("entrada")] || _q.get("entrada");
+  const actual = (lente, e, f) => /explorador\/$|explorador\/index\.html$/.test(location.pathname) && _en === lente && _q.get("e") === e && (_q.get("f") === "NAC" ? "NAC" : "REG") === f;
+  const chip = (t) => `<span aria-hidden="true" style="font-weight:700;font-size:.875rem;color:${VIOLETA}">${t}</span>`;
+  const fasesHtml = (lente) => GRUPOS.map(([f, t], i) => {
+    const off = f === "NAC" && !FINAL_PUBLICADA;
+    return (i ? '<div role="separator" aria-orientation="horizontal" style="height:1px;margin:.5rem 0;background:var(--color-divider-soft,#d8dee9)"></div>' : "") +
+      `<div role="group" aria-label="${t}"><div class="px-2 pt-2 pb-1">${chip(t)}</div>${off ? `<small class="nwx-fayuda">${FINAL_AYUDA}</small>` : ""}` +
+      EVENTOS.map(([e, n, ic]) => off ? `<div role="menuitem" aria-disabled="true" title="${FINAL_AYUDA}" class="${ITEM} nwx-mi opacity-40 cursor-not-allowed"><span style="display:inline-flex;align-items:center;gap:.5rem">${ic}${n}</span></div>`
+        : `<a href="${dest(lente, e, f)}" class="${LINK}"${actual(lente, e, f) ? ' aria-current="page"' : ""}><div role="menuitem" class="${ITEM} nwx-mi"><span style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:${VIOLETA}">${ic}</span>${n}</span></div></a>`).join("") + "</div>";
+  }).join("");
   /* Deportistas no depende de la fase: solo ofrece el evento. */
   const eventos = [["Atletismo", EXP + "deportistas&e=individual"], ["#d"], ["Deportes de conjunto", EXP + "deportistas&e=conjunto"]];
   const MENUS = {
     Deportistas: eventos,
-    "Eventos y fases": fases("eventos"),
-    Resultados: fases("resultados"),
+    "Eventos y fases": () => fasesHtml("eventos"),
+    Resultados: () => fasesHtml("resultados"),
     "Desarrollo de Juegos": [["Resultados", EXP + "resultados"], ["Deportistas", EXP + "deportistas"], ["Inscríbete aquí", login, true]],
   };
 
@@ -58,8 +70,8 @@
       el.setAttribute("role", "menu");
       el.dataset.state = "open";
       el.className = MENU;
-      el.innerHTML = items.map(([t, h, ext, off]) => off ? `<div role="menuitem" aria-disabled="true" title="${FINAL_AYUDA}" class="${ITEM} opacity-40 cursor-not-allowed flex-col items-start gap-0">${t}<small class="text-xs">${FINAL_AYUDA}</small></div>` : t === "#h" ? `<div class="px-2 pt-2 pb-1 text-sm font-bold"><span style="display:inline-flex;align-items:center;gap:.375rem;color:var(--color-JIN6-foundations-violeta,#602a8c)">${h === "Atletismo" ? ICO_ATL : ICO_BAL}${h}</span></div>` : t === "#d" ? '<div role="separator" aria-orientation="horizontal" style="height:1px;margin:.5rem 0;background:var(--color-divider-soft,#d8dee9)"></div>' :
-        `<a href="${h}" class="${LINK}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}><div role="menuitem" class="${ITEM}">${t === "Atletismo" || t === "Deportes de conjunto" ? `<span style="display:inline-flex;align-items:center;gap:.375rem;font-weight:700;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t === "Atletismo" ? ICO_ATL : ICO_BAL}${t}</span>` : t}</div></a>`).join("");
+      el.innerHTML = typeof items === "function" ? items() : items.map(([t, h, ext, off]) => off ? `<div role="menuitem" aria-disabled="true" title="${FINAL_AYUDA}" class="${ITEM} opacity-40 cursor-not-allowed flex-col items-start gap-0"><span style="font-weight:700;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t}</span><small class="text-xs">${FINAL_AYUDA}</small></div>` : t === "#h" ? `<div class="px-2 pt-2 pb-1 text-sm font-bold"><span style="display:inline-flex;align-items:center;gap:.375rem;color:var(--color-JIN6-foundations-violeta,#602a8c)">${h}</span></div>` : t === "#d" ? '<div role="separator" aria-orientation="horizontal" style="height:1px;margin:.5rem 0;background:var(--color-divider-soft,#d8dee9)"></div>' :
+        `<a href="${h}" class="${LINK}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}><div role="menuitem" class="${ITEM}">${t === "Atletismo" || t === "Deportes de conjunto" ? `<span style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t === "Atletismo" ? ICO_ATL : ICO_BAL}</span>${t}</span>` : t === "Fase final nacional" ? `<span style="font-weight:700;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t}</span>` : t}</div></a>`).join("");
       document.body.appendChild(el);
       place(trigger, el);
       trigger.setAttribute("aria-expanded", "true");
@@ -82,8 +94,15 @@
     if (!INERTES.includes(x.textContent.trim())) return;
     const s = document.createElement("span");
     s.className = x.className; s.innerHTML = x.innerHTML; s.setAttribute("aria-disabled", "true"); s.style.pointerEvents = "none";
+    /* El año va como mini badge bajo el nombre para acortar el ítem (DC-358). */
+    if (x.textContent.trim() === "Medallería 2025") {
+      s.style.position = "relative";
+      s.innerHTML = `Medallería<small style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:.125rem;font-size:.625rem;font-weight:600;line-height:1;padding:.125rem .375rem;border-radius:9999px;background:var(--color-JIC-violet-900,#28123b);color:#fff">2025</small>`;
+    }
     x.replaceWith(s);
   });
+  /* Separación del menú de escritorio a 24px (DC-359). */
+  document.querySelectorAll("header .md\\:flex.gap-8").forEach((n) => n.classList.replace("gap-8", "gap-6"));
   document.querySelectorAll("header button[aria-haspopup=menu]").forEach((t) => { if (t.textContent.trim() === "Soporte") { t.setAttribute("aria-disabled", "true"); t.style.pointerEvents = "none"; } });
   document.addEventListener("click", (e) => { if (openMenu && !openMenu.el.contains(e.target)) closeMenu(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
@@ -97,12 +116,12 @@
     const movil = (t, lente) => `<div class="flex flex-col items-center gap-3">
               <button type="button" data-reg aria-expanded="false" class="${L}">${t} ▾</button>
               <div data-reg-list class="hidden flex-col items-center gap-3 text-base">
-                <span class="text-sm font-bold" style="display:inline-flex;align-items:center;gap:.375rem;color:var(--color-JIN6-foundations-violeta,#602a8c)">${ICO_ATL}Atletismo</span>${a("Fase regional", EXP + lente + "&e=individual&f=REG")}${finalMovil(lente, "individual")}
-                <span class="text-sm font-bold mt-2" style="display:inline-flex;align-items:center;gap:.375rem;color:var(--color-JIN6-foundations-violeta,#602a8c)">${ICO_BAL}Conjunto</span>${a("Fase regional", EXP + lente + "&e=conjunto&f=REG")}${finalMovil(lente, "conjunto")}
+                ${GRUPOS.map(([f, t]) => movilGrupo(lente, f, t)).join("")}
               </div>
             </div>`;
     const a = (t, h, ext) => `<a href="${h}" class="${L}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}>${t}</a>`;
-    const finalMovil = (lente, e) => (FINAL_PUBLICADA ? a("Fase final nacional", nac(lente, e)) : `<span class="opacity-40 text-center" aria-disabled="true" title="${FINAL_AYUDA}">Fase final nacional<br><small>${FINAL_AYUDA}</small></span>`);
+    const ai = (t, h, ic, cur) => `<a href="${h}" class="${L} nwx-mm"${cur ? ' aria-current="page"' : ""} style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:var(--color-JIN6-foundations-violeta,#602a8c)">${ic}</span>${t}</a>`;
+    const movilGrupo = (lente, f, t) => `<div role="group" aria-label="${t}" class="flex flex-col items-center gap-1 w-full">${chip(t)}${f === "NAC" && !FINAL_PUBLICADA ? `<small class="nwx-fayuda">${FINAL_AYUDA}</small>` : ""}${EVENTOS.map(([e, n, ic]) => f === "NAC" && !FINAL_PUBLICADA ? `<span class="nwx-mm opacity-40" aria-disabled="true" title="${FINAL_AYUDA}">${n}</span>` : ai(n, dest(lente, e, f), ic, actual(lente, e, f))).join("")}</div>`;
     burger.addEventListener("click", () => {
       const wrap = document.createElement("div");
       wrap.className = "fixed inset-0 z-99999 md:hidden";
