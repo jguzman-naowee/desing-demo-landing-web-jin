@@ -20,7 +20,7 @@
   const ICO_ATL = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><path d="M9 2h6M12 14l3-3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="12" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>', ICO_BAL = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M2 12h20M12 2v20M5 5c4 3 4 11 0 14M19 5c-4 3-4 11 0 14" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>';
   /* Primer criterio la fase; debajo, los dos eventos. Cada enlace conserva evento y fase como contexto fijo del explorador. */
   const GRUPOS = [["REG", "Fase regional"], ["NAC", "Fase final nacional"]];
-  const EVENTOS = [["individual", "Atletismo", ICO_ATL], ["conjunto", "Deportes de conjunto", ICO_BAL]];
+  const EVENTOS = [["individual", "Deportes individuales", ICO_ATL], ["conjunto", "Deportes de conjunto", ICO_BAL]];
   const VIOLETA = "var(--color-JIN6-foundations-violeta,#602a8c)";
   const _q = new URLSearchParams(location.search), _en = { dia: "eventos", "calendario-resultados": "resultados" }[_q.get("entrada")] || _q.get("entrada");
   const actual = (lente, e, f) => /explorador\/$|explorador\/index\.html$/.test(location.pathname) && _en === lente && _q.get("e") === e && (_q.get("f") === "NAC" ? "NAC" : "REG") === f;
@@ -33,7 +33,7 @@
         : `<a href="${dest(lente, e, f)}" class="${LINK}"${actual(lente, e, f) ? ' aria-current="page"' : ""}><div role="menuitem" class="${ITEM} nwx-mi"><span style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:${VIOLETA}">${ic}</span>${n}</span></div></a>`).join("") + "</div>";
   }).join("");
   /* Deportistas no depende de la fase: solo ofrece el evento. */
-  const eventos = [["Atletismo", EXP + "deportistas&e=individual"], ["#d"], ["Deportes de conjunto", EXP + "deportistas&e=conjunto"]];
+  const eventos = [["Deportes individuales", EXP + "deportistas&e=individual"], ["#d"], ["Deportes de conjunto", EXP + "deportistas&e=conjunto"]];
   const MENUS = {
     Deportistas: eventos,
     "Eventos y fases": () => fasesHtml("eventos"),
@@ -71,7 +71,7 @@
       el.dataset.state = "open";
       el.className = MENU;
       el.innerHTML = typeof items === "function" ? items() : items.map(([t, h, ext, off]) => off ? `<div role="menuitem" aria-disabled="true" title="${FINAL_AYUDA}" class="${ITEM} opacity-40 cursor-not-allowed flex-col items-start gap-0"><span style="font-weight:700;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t}</span><small class="text-xs">${FINAL_AYUDA}</small></div>` : t === "#h" ? `<div class="px-2 pt-2 pb-1 text-sm font-bold"><span style="display:inline-flex;align-items:center;gap:.375rem;color:var(--color-JIN6-foundations-violeta,#602a8c)">${h}</span></div>` : t === "#d" ? '<div role="separator" aria-orientation="horizontal" style="height:1px;margin:.5rem 0;background:var(--color-divider-soft,#d8dee9)"></div>' :
-        `<a href="${h}" class="${LINK}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}><div role="menuitem" class="${ITEM}">${t === "Atletismo" || t === "Deportes de conjunto" ? `<span style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t === "Atletismo" ? ICO_ATL : ICO_BAL}</span>${t}</span>` : t === "Fase final nacional" ? `<span style="font-weight:700;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t}</span>` : t}</div></a>`).join("");
+        `<a href="${h}" class="${LINK}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}><div role="menuitem" class="${ITEM}">${t === "Deportes individuales" || t === "Deportes de conjunto" ? `<span style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t === "Deportes individuales" ? ICO_ATL : ICO_BAL}</span>${t}</span>` : t === "Fase final nacional" ? `<span style="font-weight:700;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t}</span>` : t}</div></a>`).join("");
       document.body.appendChild(el);
       place(trigger, el);
       trigger.setAttribute("aria-expanded", "true");
@@ -139,7 +139,7 @@
             ${movil("Resultados", "resultados")}
             <div class="flex flex-col items-center gap-3">
               <button type="button" data-reg aria-expanded="false" class="${L}">Deportistas ▾</button>
-              <div data-reg-list class="hidden flex-col items-center gap-3 text-base">${a("Atletismo", EXP + "deportistas&e=individual")}${a("Deportes de conjunto", EXP + "deportistas&e=conjunto")}</div>
+              <div data-reg-list class="hidden flex-col items-center gap-3 text-base">${a("Deportes individuales", EXP + "deportistas&e=individual")}${a("Deportes de conjunto", EXP + "deportistas&e=conjunto")}</div>
             </div>
             ${a("Noticias", href("noticias"))}
             ${a("Medalleria 2025", ROOT + "public/pdfs/analisis_medallas_comite.pdf", true)}

@@ -21,7 +21,7 @@
   const TIPO_LABEL = { individual: "Individual", conjunto: "De conjunto" };
   const SEXO_LABEL = { H: "Hombre", M: "Mujer", MX: "Mixto" };
   const ORDER = ["tipo", "deporte", "prueba", "regional", "depto", "sexo", "cat", "inst"];
-  const EVT_LABEL = { individual: "Atletismo", conjunto: "Deportes de conjunto" }, FASE_LABEL = { REG: "Regional", NAC: "Final nacional" };
+  const EVT_LABEL = { individual: "Deportes individuales", conjunto: "Deportes de conjunto" }, FASE_LABEL = { REG: "Regional", NAC: "Final nacional" };
   let ENT = { e: "", f: "REG" };
   (() => {
     const qs = new URLSearchParams(location.search), qe = qs.get("e");
@@ -306,7 +306,7 @@
     const { days, evA, evB, rows } = o;
     const dl = (d) => fmtDia(d, "larga"), mk = (ic, t, tip) => '<span class="nwx-tip nwx-mk" tabindex="0" data-tip="' + esc(tip) + '" aria-label="' + esc(tip) + '"><span class="nwx-gm2">' + ic + "</span><small>" + t + "</small></span>";
     const tint = (r) => r.tint || TINT[r.dep] || "bg-calendar-orange";
-    const cnt = (r, d) => { const t = r.bl && (d ? r.bl.days[d] : r.bl.total); return t ? '<span class="nwx-bl">' + esc(t) + "</span>" : ""; };
+    const cnt = (r, d) => { const t = r.bl && (d ? r.bl.days[d] : r.bl.total); if (!t) return ""; const m = /^(\d+)\s+(.+)$/.exec(t); return '<span class="nwx-bl">' + (m ? "<b>" + m[1] + "</b><small>" + esc(m[2]) + "</small>" : esc(t)) + "</span>"; };
     const pick = "CDT".includes(level()) ? new Set(datedDays(dayPool(Object.assign({}, S.c, { sexo: "" })))) : new Set(), sel = S.d, ax = dayAxis({ pick, sel, evA, evB, days });
     /* Sin fecha por partido, la prueba es una sola banda de INICIO a FINAL; con fecha, una ficha por día. Ninguna lleva texto: va en title/aria-label. */
     const band = (r, d) => { const ds = [...r.ds].sort(), tip = spanLbl2(r) + (r.lbl ? " · " + r.lbl : "") + " · " + r.name + (cnt(r) ? " · " + r.bl.total : "");
@@ -442,7 +442,7 @@
     const mob = (x, i, n) => '<span class="nwx-mmq">' + depBadge(x.refId) + nm(x, i) + '</span><b class="nwx-mmb' + cls(i) + '">' + (n != null && has ? n : "–") + "</b>";
     return '<div class="nwx-mhd" role="group" aria-label="' + esc(al) + '"><span class="nwx-ml">' + nm(ps[0], 0) + depBadge(ps[0].refId) + '</span><span class="nwx-mbox"><span class="nwx-mu">' + (has && unit ? unit : "") + '</span><span class="nwx-mscore">' + mid + "</span>" + tag + '</span><span class="nwx-maway">' + depBadge(ps[1].refId) + nm(ps[1], 1) + "</span>"
       + '<span class="nwx-mtop" aria-hidden="true">' + (has && unit ? '<span class="nwx-mu">' + unit + "</span>" : "<span></span>") + tag + '</span><span class="nwx-mm1" aria-hidden="true">' + mob(ps[0], 0, n0) + '</span><span class="nwx-mm2" aria-hidden="true">' + mob(ps[1], 1, n1) + "</span></div>"; };
-  const mlist = (es, p) => '<div class="nwx-mlist2"><div class="nwx-mhead" aria-hidden="true"><span>Partido</span><span></span><span class="nwx-mh-l">Local</span><span class="nwx-mh-c">Marcador</span><span class="nwx-mh-v">Visitante</span>' + (RES ? "<span></span><span></span>" : "") + "</div>" + es.map((e) => mrow(e, p)).join("") + "</div>";
+  const mlist = (es, p) => { const solo = !es.some(isTeam); return '<div class="nwx-mlist2"><div class="nwx-mhead" aria-hidden="true"><span>' + (solo ? "Serie" : "Partido") + "</span><span></span>" + (solo ? '<span>Participantes</span><span class="nwx-mh-c">Estado</span>' : '<span class="nwx-mh-l">Local</span><span class="nwx-mh-c">Marcador</span><span class="nwx-mh-v">Visitante</span>') + (RES ? "<span></span><span></span>" : "") + "</div>" + es.map((e) => mrow(e, p)).join("") + "</div>"; };
   /* Tablas del resultado propio del nodo (grupo o prueba), siempre en bloque aparte de la lista de hijos. */
   const tablesOf = (p, grupo) => { const r = p.resultado; if (!r) return "";
     const q = grupo && r.tipo === "posiciones" ? Object.assign({}, p, { resultado: Object.assign({}, r, { tablas: r.tablas.filter((t) => t.grupo === grupo) }) }) : p;
