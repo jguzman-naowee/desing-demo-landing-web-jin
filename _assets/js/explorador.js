@@ -5,10 +5,12 @@
   const D = window.EXPLORADOR_DATOS;
   const root = document.getElementById("explorador");
   if (!D || !root) return;
-  /* La muestra de la final está inventada sobre deportistas reales: solo se carga con ?demo=nac y en local. */
-  const DEMO = new URLSearchParams(location.search).get("demo") === "nac" && /^(localhost|127\.0\.0\.1|)$/.test(location.hostname);
+  /* Medallas <nao-award>: módulo ES local, edición Colombia (la de JIN). Hay que servir por HTTP. */
+  if (!customElements.get("nao-award") && !document.querySelector("script[data-nao-awards]")) { const m = document.createElement("script"); m.type = "module"; m.dataset.naoAwards = ""; m.src = ((me && me.src) || "").replace(/explorador\.js(\?.*)?$/, "awards.js"); document.head.appendChild(m); }
+  /* Demo: la final de ejemplo (datos ficticios) va siempre encendida. */
+  const DEMO = (() => { let on = true; try { on = on || localStorage.getItem("nwx-demo-final") === "1"; } catch (e) { /* sin storage */ } return on; })();
   if (DEMO && !window.EXPLORADOR_DEMO) { const s = document.createElement("script"); s.src = ((me && me.src) || "").replace(/explorador\.js(\?.*)?$/, "explorador-datos-demo.js"); s.onload = () => boot(me); document.head.appendChild(s); return; }
-  if (DEMO && !D.demoFusion) { D.demoFusion = true; ["pruebas", "encuentros", "participaciones"].forEach((k) => { D[k] = D[k].concat(window.EXPLORADOR_DEMO[k] || []); }); }
+  if (DEMO && !D.demoFusion) { D.demoFusion = true; ["pruebas", "encuentros", "participaciones", "deportistas", "instituciones", "sedes"].forEach((k) => { D[k] = D[k].concat(window.EXPLORADOR_DEMO[k] || []); }); }
 
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const norm = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -23,6 +25,8 @@
   let ENT = { e: "", f: "REG" };
   (() => {
     const qs = new URLSearchParams(location.search), qe = qs.get("e");
+    /* «Fase final» no lleva evento: una sola vista con todos los deportes de la final. */
+    if (!qe && qs.get("f") === "NAC" && qs.get("entrada") !== "deportistas" && window.NWX_FINAL_PUBLICADA) { ENT = { e: "", f: "NAC" }; return; }
     if (EVT_LABEL[qe]) { ENT = { e: qe, f: qs.get("f") === "NAC" && qs.get("entrada") !== "deportistas" ? "NAC" : "REG" }; if (qs.get("entrada") === "deportistas") return; try { sessionStorage.setItem("nwx-entrada", ENT.e + "|" + ENT.f); } catch (x) { /* sin storage */ } return; }
     if (qs.get("entrada") === "deportistas") return; /* sin evento: se ofrece el selector, no se hereda uno recordado */
     let m = ""; try { m = sessionStorage.getItem("nwx-entrada") || ""; } catch (x) { /* sin storage */ }
@@ -49,9 +53,11 @@
   const FASE = D.fases.filter((f) => f.clave === faseNow())[0] || D.fases[0];
   /* Las lentes ven solo su fase; Deportistas no depende de la fase y nunca ve la muestra. */
   const PRUEBAS = D.pruebas.filter((p) => (LENS ? p.faseId === FASE.id && (!p.ejemplo || DEMO) : !p.ejemplo));
-  const depsFase = () => D.deportes.filter((d) => d.tipo === ENT.e && PRUEBAS.some((q) => q.deporteId === d.id));
+  const depsFase = () => D.deportes.filter((d) => (!ENT.e || d.tipo === ENT.e) && PRUEBAS.some((q) => q.deporteId === d.id));
   /* Atletismo con un solo deporte en la final entra directo a sus pruebas; conjunto entra por Deportes. */
-  const autoDep = () => !FASE.regiones && ENT.e === "individual" && depsFase().length === 1;
+  /* En la final, un evento con un solo deporte en el catálogo (Atletismo) salta Deportes; sale del catálogo, no de los datos. */
+  const depsCat = () => D.deportes.filter((d) => d.tipo === ENT.e);
+  const autoDep = () => !FASE.regiones && !!ENT.e && depsCat().length === 1;
   const SELD = FASE.regiones ? "nwx-seld" : "nwx-seld-" + FASE.clave;
   const deptsOf = {};
   D.pruebas.forEach((p) => { deptsOf[p.id] = new Set((partes[p.id] || []).map((x) => ((x.tipo === "deportista" ? ATH[x.refId] : INS[x.refId]) || {}).departamentoId).filter(Boolean)); });
@@ -91,9 +97,11 @@
     if (!ENT.e && (t === "deporte" || (t === "regional" && !c.deporte))) delete c.tipo;
     if (t === "tipo") { delete c.deporte; delete c.prueba; }
     if (t === "deporte") delete c.prueba;
+    if (t === "deporte" && LENS) { delete c.sexo; delete c.cat; delete c.inst; } /* lo que se elige después del deporte se va con él */
     if (t === "regional" && LENS) delete c.depto;
     return c;
   };
+  const rmSel = (t) => { S.c = rmC(S.c, t); if (t === "deporte" && LENS) { S.p = ""; S.m = ""; S.d = ""; S.dAll = false; } };
   const tipoCtx = (c) => c.tipo || (c.deporte ? DEPO[c.deporte].tipo : "");
   const valLabel = (t, v) => ({ tipo: EVT_LABEL[v], deporte: (DEPO[v] || {}).nombre, prueba: v, regional: (REG[v] || {}).nombre, depto: (DPT[v] || {}).nombre, sexo: SEXO_LABEL[v], cat: v, inst: (INS[v] || {}).nombre }[t]);
 
@@ -111,13 +119,13 @@
     if (S.d && (!("CDEF".includes(level()) || (LENS && S.todas)) || !datedDays(dayPool(S.c)).includes(S.d))) S.d = "";
     /* Sin «d» en el enlace manda la regla de hoy; «Todos» se recuerda con d=todos para no reimponerla. */
     if (!"CDEF".includes(level())) S.dAll = false;
-    else if (!S.d && !S.dAll && !RES && "CDE".includes(level())) { const ds = datedDays(dayPool(S.c)); if (ds.length) S.d = defaultDay(ds); }
+    else if (!S.d && !S.dAll && !RES && "CDE".includes(level()) && (FASE.regiones || level() !== "C")) { const ds = datedDays(dayPool(S.c)); if (ds.length) S.d = defaultDay(ds); }
   };
   /* Categorías y sexos que existen en el alcance actual (sin contar el propio filtro); Mixto solo si hay pruebas mixtas. */
   const CORDER = ["Prejuvenil", "Juvenil"];
   const scopeOf = (c) => PRUEBAS.filter((q) => ok(q, Object.assign({}, c, { sexo: "", cat: "" })));
   const attrOpts = (c) => { const s = scopeOf(c); return { cats: [...new Set(s.map((q) => q.categoria).filter(Boolean))].sort((a, b) => (CORDER.indexOf(a) + 1 || 99) - (CORDER.indexOf(b) + 1 || 99) || a.localeCompare(b, "es")), mx: s.some((q) => q.sexo === "MX"), nosex: s.some((q) => !q.sexo) }; };
-  const cleanAttrs = () => { delete S.c.cat; }; /* la categoría ya no es filtro: vive en el nombre de la prueba y en la grilla */
+  const cleanAttrs = () => { if (S.c.cat && (!LENS || !attrOpts(S.c).cats.includes(S.c.cat))) delete S.c.cat; }; /* Deportistas no filtra por edad; en las otras lentes se limpia si el alcance no la tiene */
   /* Días reales: salen solo de las fechas de los partidos; sin ellas no hay selector ni se inventa nada. */
   const datedDays = (ps) => [...new Set(ps.flatMap((p) => (ENC[p.id] || []).map((e) => e.fecha).filter(Boolean)))].sort();
   /* En C (deportes) el eje cubre toda la regional; en T (todas las regionales), las del evento. */
@@ -136,7 +144,7 @@
       /* Enlaces viejos (?entrada=dia, ficha p:/m:) llegan al mismo nivel del flujo nuevo. */
       if (S.ficha[0] === "p" && PBY[S.ficha.slice(2)]) { const q = PBY[S.ficha.slice(2)]; S.c = { tipo: S.c.tipo, regional: q.regionalId, deporte: q.deporteId }; S.p = q.id; S.m = S.hl; S.ficha = ""; S.hl = ""; }
       if (S.c.prueba) { const qs = PRUEBAS.filter((q) => ok(q, S.c)); if (qs.length === 1 && !S.p) S.p = qs[0].id; delete S.c.prueba; }
-      if (autoDep() && !S.c.deporte) S.c.deporte = depsFase()[0].id;
+      if (autoDep() && !S.c.deporte) S.c.deporte = depsCat()[0].id;
       normalize();
     } else cleanAttrs();
   };
@@ -195,10 +203,12 @@
   const flagHtml = (id) => { const d = (ATH[id] || INS[id] || {}).departamentoId; return d ? '<img class="nwx-flag" src="../public/department_flags/' + slugOf(d) + '.png" alt="" width="22" height="15">' : ""; };
   const rank = (n) => '<span class="nwx-rank">' + esc(n) + "</span>";
   const PLAINC = "#5b2d86";
-  const MEDC = ["#e0a800", "#9aa3ad", "#b9703a"];
+  const METALES = ["gold", "silver", "bronze"];
+  /* Medalla del podio: puesto en el centro, con cinta y sombra, como en el podio de COC (aquí sin banderas). */
+  const medalla = (i, size) => '<nao-award kind="medal" metal="' + METALES[i] + '" icon="' + (i + 1) + '" edition="colombia" size="' + size + '"></nao-award>';
   const initials = (n) => n.replace(/^Instituci[oó]n Educativa\s*/i, "").split(" ").slice(0, 2).map((w) => w[0]).join("");
-  const podiumHtml = (items) => '<div class="nwx-pod' + (items.plain ? " nwx-pod--plain" : "") + '">' + [1, 0, 2].map((i) => { const it = items[i]; if (!it) return "";
-    return '<div class="nwx-pd p' + (i + 1) + '"><span class="nwx-pav" style="--mc:' + (items.plain ? PLAINC : MEDC[i]) + '">' + (it.person ? PERSON : "<b>" + esc(initials(it.name)) + "</b>") + '<span class="nwx-pbadge" style="background:' + (items.plain ? PLAINC : MEDC[i]) + '">' + (i + 1) + "</span></span><b class=\"nwx-pname\" title=\"" + esc(it.name) + "\">" + esc(it.name) + "</b><small title=\"" + esc(it.sub) + "\">" + esc(it.sub) + '</small><span class="nwx-pmark">' + esc(it.mark) + "</span></div>"; }).join("") + "</div>";
+  const podiumHtml = (items) => '<div class="nwx-pod' + (items.plain ? " nwx-pod--plain" : " nwx-pod--medal") + '">' + [1, 0, 2].map((i) => { const it = items[i]; if (!it) return "";
+    return '<div class="nwx-pd p' + (i + 1) + '"' + (items.plain ? "" : ' data-m="' + ["oro", "plata", "bronce"][i] + '"') + '>' + (items.plain ? '<span class="nwx-pav" style="--mc:' + PLAINC + '">' + (it.person ? PERSON : "<b>" + esc(initials(it.name)) + "</b>") + '<span class="nwx-pbadge" style="background:' + PLAINC + '">' + (i + 1) + "</span></span>" : '<span class="nwx-pmed">' + medalla(i, window.matchMedia("(max-width:700px)").matches ? (i ? 96 : 124) : (i ? 140 : 190)) + "</span>") + "<b class=\"nwx-pname\" title=\"" + esc(it.name) + "\">" + esc(it.name) + "</b><small title=\"" + esc(it.sub) + "\">" + esc(it.sub) + '</small><span class="nwx-pmark">' + esc(it.mark) + "</span></div>"; }).join("") + "</div>";
   const depName = (id) => ((DPT[(ATH[id] || INS[id] || {}).departamentoId] || {}).nombre) || "";
   /* El podio sale de las filas con medalla (no del orden) y solo si la fase de la prueba reparte medallas. Sin cifra en equipos. */
   const MEDAL_IX = { oro: 0, plata: 1, bronce: 2 };
@@ -243,7 +253,7 @@
     let h = "";
     if (o.part === "enc") { /* solo enfrentamientos */ } else if (r && r.tipo === "clasificacion") {
       if (withPod && podOf(p)) h += podiumHtml(podOf(p));
-      h += clasifTable(r.filas.slice().sort((a, b) => (a.puesto || 99) - (b.puesto || 99)));
+      h += clasifTable(r.filas.filter((f) => !o.only || f.refId === o.only).sort((a, b) => (a.puesto || 99) - (b.puesto || 99)));
     } else if (r && r.tipo === "posiciones") {
       if (withPod && p.estado === "finalizada" && podOf(p)) h += podiumHtml(podOf(p));
       h += r.tablas.map((t) => '<div class="nwx-tbox"><div class="nwx-gt">' + (t.grupo ? "Grupo " + esc(t.grupo) : "Posiciones") + '</div><table class="nwx-rtab"><thead><tr><th>#</th><th>Equipo</th>' +
@@ -253,7 +263,9 @@
     } else {
       h += p.estado === "finalizada" || p.estado === "en-competencia" ? empty(p.estado === "finalizada" ? "Aún no hay resultado publicado." : "En juego: el resultado aparece al terminar.") : "";
     }
-    const es = (ENC[p.id] || []).filter((e) => e.participantes.length && e.id !== o.exId);
+    /* Con o.only (ficha del deportista) quedan solo los enfrentamientos donde compite él o su institución. */
+    const mine = o.only ? [o.only, (ATH[o.only] || {}).institucionId] : null;
+    const es = (ENC[p.id] || []).filter((e) => e.participantes.length && e.id !== o.exId && (!mine || e.participantes.some((x) => mine.includes(x.refId))));
     if (es.length && o.part !== "tables") {
       const ronda = (e) => ((p.rondas || []).filter((x) => x.id === e.rondaId)[0] || {}).nombre || "";
       const head = (e) => [ronda(e), e.grupo ? "Grupo " + e.grupo : ""].filter(Boolean).join(" - ") || "Enfrentamientos";
@@ -273,12 +285,12 @@
   const CHEV = '<svg class="nwx-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
   const lugarOf = (p) => (faseOf(p).regiones === false ? "Final nacional · " + (faseOf(p).sede || "") : "Regional " + ((REG[p.regionalId] || {}).nombre || ""));
   const eHead = () => '<div class="nwx-ehead"><span>Prueba</span><span>Fase</span><span>Estado</span><span></span></div>';
-  const rowHtml = (p, extra) => {
+  const rowHtml = (p, extra, only) => {
     const s = STATE[p.estado] || ["prog", p.estado];
     const tags = [SEXO_LABEL[p.sexo], p.categoria].filter(Boolean).map((t) => '<span class="nwx-tag">' + esc(t) + "</span>").join("");
     const reg = lugarOf(p);
     return '<details class="nwx-erow"' + '><summary><span class="nwx-ename"><b class="nwx-ebox">' + esc(p.disciplina) + "</b>" + tags + '</span><span class="nwx-ereg">' + esc(reg) + (extra ? " · " + esc(extra) : "") +
-      '</span><span class="nwx-state ' + s[0] + '">' + s[1] + "</span>" + CHEV + '</summary><div class="nwx-body">' + resultHtml(p) + '<div class="nwx-detail"><button type="button" class="nwx-btn" data-a="fp" data-id="' + esc(p.id) + '">Ver detalle de la prueba</button></div></div></details>';
+      '</span><span class="nwx-state ' + s[0] + '">' + s[1] + "</span>" + CHEV + '</summary><div class="nwx-body">' + resultHtml(p, false, only ? { only } : undefined) + '<div class="nwx-detail"><button type="button" class="nwx-btn" data-a="fp" data-id="' + esc(p.id) + '">Ver detalle de la prueba</button></div></div></details>';
   };
   /* Estado vacío estándar: una sola línea de texto (y, si aplica, una acción), sin título ni caja propia. */
   const empty = (msg, act) => '<div class="nwx-es" role="status"><span>' + msg + "</span>" + (act || "") + "</div>";
@@ -287,19 +299,23 @@
   /* ── Vistas ──────────────────────────────────────────────── */
   /* ── Calendario como visor del árbol: las filas son los hijos del nodo de «Qué» que se está viendo ── */
   const FLAG = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.3 2A6 6 0 0 0 20 3v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 15c-3 0-5-2-8-2a6 6 0 0 0-4 1.5"/></svg>';
+  /* Cuántos partidos (o series) hay dentro de cada ficha: total y por día. */
+  const blOf = (ps) => { const all = ps.flatMap((p) => encsOf(p)), by = {}; all.forEach((e) => { if (e.fecha) (by[e.fecha] = by[e.fecha] || []).push(e); });
+    return { total: all.length ? nEnc(all) : "", days: Object.fromEntries(Object.keys(by).map((d) => [d, nEnc(by[d])])) }; };
   const buildGrid = (o) => {
     const { days, evA, evB, rows } = o;
     const dl = (d) => fmtDia(d, "larga"), mk = (ic, t, tip) => '<span class="nwx-tip nwx-mk" tabindex="0" data-tip="' + esc(tip) + '" aria-label="' + esc(tip) + '"><span class="nwx-gm2">' + ic + "</span><small>" + t + "</small></span>";
     const tint = (r) => r.tint || TINT[r.dep] || "bg-calendar-orange";
+    const cnt = (r, d) => { const t = r.bl && (d ? r.bl.days[d] : r.bl.total); return t ? '<span class="nwx-bl">' + esc(t) + "</span>" : ""; };
     const pick = "CDT".includes(level()) ? new Set(datedDays(dayPool(Object.assign({}, S.c, { sexo: "" })))) : new Set(), sel = S.d, ax = dayAxis({ pick, sel, evA, evB, days });
     /* Sin fecha por partido, la prueba es una sola banda de INICIO a FINAL; con fecha, una ficha por día. Ninguna lleva texto: va en title/aria-label. */
-    const band = (r, d) => { const ds = [...r.ds].sort(), tip = spanLbl2(r) + (r.lbl ? " · " + r.lbl : "") + " · " + r.name;
-      return d !== ds[0] ? "" : '<a class="nwx-band ' + tint(r) + '" href="' + r.href + '" style="--n:' + ds.length + '" title="' + esc(tip) + '" aria-label="' + esc(tip) + '"><span class="nwx-bi" style="color:#e4403a">' + (ICON[r.dep] || ICON.fds) + "</span></a>"; };
+    const band = (r, d) => { const ds = [...r.ds].sort(), tip = spanLbl2(r) + (r.lbl ? " · " + r.lbl : "") + " · " + r.name + (cnt(r) ? " · " + r.bl.total : "");
+      return d !== ds[0] ? "" : '<a class="nwx-band ' + tint(r) + '" href="' + r.href + '" style="--n:' + ds.length + '" title="' + esc(tip) + '" aria-label="' + esc(tip) + '"><span class="nwx-bi" style="color:#e4403a">' + (ICON[r.dep] || ICON.fds) + "</span>" + cnt(r) + "</a>"; };
     const cell = (d, r) => { const inR = d >= evA && d <= evB, edge = (d === evA ? " nwx-el" : "") + (d === evB ? " nwx-er" : "") + (d === sel ? " nwx-dsel" : "");
       if (!r) return '<div class="nwx-gcell ' + (inR ? "bg-white" : "bg-NW-gray-400") + edge + '">' + (d === evA ? mk(FLAG, "Inicio", "Inicio de la competencia · " + dl(d)) : d === evB ? mk(TROPHY_W, "Final", "Cierre de la competencia · " + dl(d)) : "") + "</div>";
       const on = r.ds.has(d);
-      const tip1 = dl(d) + (r.lbl ? " · " + r.lbl : "") + " · " + r.name;
-      return '<div class="nwx-gcell ' + (inR ? "bg-white" : "bg-NW-gray-400") + edge + '">' + (r.range ? (on ? band(r, d) : "") : on ? '<a class="nwx-band ' + tint(r) + '" href="' + r.href + '" style="--n:1" title="' + esc(tip1) + '" aria-label="' + esc(tip1) + '"><span class="nwx-bi" style="color:#e4403a">' + (ICON[r.dep] || ICON.fds) + "</span></a>" : "") + "</div>"; };
+      const tip1 = dl(d) + (r.lbl ? " · " + r.lbl : "") + " · " + r.name + (cnt(r, d) ? " · " + r.bl.days[d] : "");
+      return '<div class="nwx-gcell ' + (inR ? "bg-white" : "bg-NW-gray-400") + edge + '">' + (r.range ? (on ? band(r, d) : "") : on ? '<a class="nwx-band ' + tint(r) + '" href="' + r.href + '" style="--n:1" title="' + esc(tip1) + '" aria-label="' + esc(tip1) + '"><span class="nwx-bi" style="color:#e4403a">' + (ICON[r.dep] || ICON.fds) + "</span>" + cnt(r, d) + "</a>" : "") + "</div>"; };
     return '<div class="w-full h-full mx-auto bg-white rounded-xl shadow-lg nwx-gcard"><div class="w-full nwx-gwrap"><div class="nwx-rgrid2" style="grid-template-columns:minmax(14rem,17rem) repeat(' + days.length + ',minmax(4.25rem,1fr))">' +
       '<div class="nwx-gh flex items-center justify-end border-b border-r border-gray-200 bg-white px-4"><span class="text-sm">Días</span></div>' + days.map((d) => '<div class="nwx-gh bg-linear-to-b from-white to-gray-50 border-b-2 border-gray-200 flex items-center justify-center py-3' + (d >= evA && d <= evB ? " nwx-hd" : "") + (d === evA ? " nwx-el" : "") + (d === evB ? " nwx-er" : "") + '">' + ax.cell(d) + "</div>").join("") +
       '<div class="px-2 md:px-4 py-2 border-b border-r border-gray-200 bg-white flex items-center"><span class="font-bold text-sm uppercase tracking-wide" style="color:var(--color-JIC-violet-900)">' + o.label + "</span></div>" + days.map((d) => cell(d, null)).join("") +
@@ -307,10 +323,13 @@
   };
   const ventana = () => { const a = dateOf(FASE.inicio), b = dateOf(FASE.fin), m = (d) => fmt(isoOf(d), { month: "long" });
     return "Del " + a.getDate() + (m(a) === m(b) ? "" : " de " + m(a)) + " al " + b.getDate() + " de " + m(b); };
+  /* Mismo empty que la final sin publicar: pill de contexto, título y detalle (sin la nota al pie con divisor). */
+  const sinRes = (tit, det) => '<div class="nwx-card nwx-npub" role="status"><div class="nwx-empty"><small class="nwx-npk">' + esc((FASE.regiones ? "Fase regional" : "Fase final nacional") + (EVT_LABEL[ENT.e] ? " · " + EVT_LABEL[ENT.e] : "")) + "</small><b>" + tit + "</b>" + (det ? "<span>" + det + "</span>" : "") + "</div></div>";
+  const nacVacio = () => '<div class="nwx-card nwx-npub" role="status"><div class="nwx-empty"><small class="nwx-npk">Fase final nacional · ' + esc(EVT_LABEL[ENT.e] || "") + "</small><b>Aún no hay calendario ni resultados publicados</b><span>" + esc(ventana() + " de " + FASE.inicio.slice(0, 4) + " · Sede única: " + (FASE.sede || "por confirmar")) + "</span></div></div>";
   const gridOf = (label, rows, full) => {
     /* La final tiene ventana oficial (/phases): sus días son las columnas aunque no haya filas ni fechas. */
     if (!FASE.regiones && FASE.inicio && FASE.fin) { const ds = []; for (const d = dateOf(FASE.inicio); isoOf(d) <= FASE.fin; d.setDate(d.getDate() + 1)) ds.push(isoOf(d));
-      return '<div class="nwx-nacg">' + buildGrid({ days: ds, evA: FASE.inicio, evB: FASE.fin, label, rows }) + "</div>" + (rows.length ? "" : '<div class="nwx-card nwx-npub" role="status"><div class="nwx-empty"><small class="nwx-npk">Fase final nacional · ' + esc(EVT_LABEL[ENT.e] || "") + "</small><b>Aún no hay calendario ni resultados publicados</b><span>" + esc(ventana() + " de " + FASE.inicio.slice(0, 4) + " · Sede única: " + (FASE.sede || "por confirmar")) + "</span></div></div>"); }
+      return '<div class="nwx-nacg">' + buildGrid({ days: ds, evA: FASE.inicio, evB: FASE.fin, label, rows }) + "</div>" + (rows.length ? "" : nacVacio()); }
     const all = [...new Set((full || rows).flatMap((r) => [...r.ds]))].sort();
     if (!all.length) return '<div class="nwx-card">' + emptyHtml("Sin " + label.toLowerCase(), "Con estos filtros no hay nada que mostrar en este nivel.") + "</div>";
     const evA = all[0], evB = all[all.length - 1], days = [], st = dateOf(evA); st.setDate(st.getDate() - 3);
@@ -348,17 +367,29 @@
   const nEnc = (es) => { const t = es.some(isTeam); return es.length + (t ? (es.length === 1 ? " partido" : " partidos") : (es.length === 1 ? " serie" : " series")); };
   const regPruebas = (rid) => PRUEBAS.filter((p) => (!FASE.regiones || p.regionalId === rid) && ok(p, Object.assign({}, S.c, { regional: rid })));
   const rowsT = (all) => REGIONALES.filter((r) => regTipo(r.id) === ENT.e && (all || !S.d || regPruebas(r.id).some(onDay))).map((r) => { const ps = regPruebas(r.id), pr = progress(ps);
-    return { stl: pr.st[1], name: r.nombre, dep: "", ds: new Set(ps.flatMap(dayDates)), range: ps.length > 0 && !ps.some(dated), href: hrefOf(LV.C(r.id)), pill: pillH(pr.st), sub: pr.txt, tint: RTINT[pr.st[0]], lbl: SHORT[pr.st[0]] }; });
+    return { bl: blOf(ps), stl: pr.st[1], name: r.nombre, dep: "", ds: new Set(ps.flatMap(dayDates)), range: ps.length > 0 && !ps.some(dated), href: hrefOf(LV.C(r.id)), pill: pillH(pr.st), sub: pr.txt, tint: RTINT[pr.st[0]], lbl: SHORT[pr.st[0]] }; });
   const rowsC = (all) => { const ps = regPruebas(S.c.regional);
     return D.deportes.filter((d) => ps.some((p) => p.deporteId === d.id && (all || onDay(p)))).map((d) => { const mine = ps.filter((p) => p.deporteId === d.id), pr = progress(mine), ds = new Set(mine.flatMap(dayDates));
-      const o = { name: d.nombre, dep: d.id, ds, range: !mine.some(dated), href: hrefOf(LV.D(d.id)) };
+      const o = { name: d.nombre, dep: d.id, ds, range: !mine.some(dated), href: hrefOf(LV.D(d.id)), bl: blOf(mine) };
       return Object.assign(o, RES ? { stl: pr.st[1], pill: pillH(pr.st), sub: pr.txt, tint: RTINT[pr.st[0]], lbl: SHORT[pr.st[0]] } : { sub: spanLbl2(o) + " · " + mine.length + (mine.length === 1 ? " prueba" : " pruebas") }); }); };
   const onDay = (p) => !S.d || (ENC[p.id] || []).some((e) => e.fecha === S.d);
   const rowsD = () => regPruebas(S.c.regional).filter((p) => p.deporteId === S.c.deporte && onDay(p))
     .sort((a, b) => String(a.sexo).localeCompare(String(b.sexo)) || String(a.categoria).localeCompare(String(b.categoria)) || a.disciplina.localeCompare(b.disciplina, "es"))
-    .map((p) => { const es = encsOf(p), st = STATE[p.estado] || ["prog", "Programada"], o = { name: plab(p), dep: p.deporteId, ds: new Set(dayDates(p)), range: !dated(p), href: hrefOf(LV.E(p.id)) };
+    .map((p) => { const es = encsOf(p), st = STATE[p.estado] || ["prog", "Programada"], o = { name: plab(p), dep: p.deporteId, ds: new Set(dayDates(p)), range: !dated(p), href: hrefOf(LV.E(p.id)), bl: blOf([p]) };
       return Object.assign(o, RES ? { stl: st[1], pill: pillH(st), sub: nEnc(es) + (p.estado === "finalizada" ? " · " + leaderOf(p) : ""), tint: RTINT[st[0]], lbl: st[1] } : { sub: spanLbl2(o) + (es.length ? " · " + nEnc(es) : "") }); });
   const leaderOf = (p) => { const r = p.resultado, f = r && r.tipo === "clasificacion" ? r.filas[0] : r && r.tipo === "posiciones" && r.tablas.length === 1 ? r.tablas[0].filas[0] : null; return f ? "1.º " + nameOf(f.refId) : ""; };
+  /* Medallería de la final: se cuenta desde las mismas filas con medalla del podio; un equipo suma una sola medalla. Sin medallas no se pinta. */
+  const medalleria = () => {
+    if (!RES || FASE.regiones || !FASE.medallas) return "";
+    const t = {};
+    PRUEBAS.forEach((p) => { const r = p.resultado; if (!r || p.estado !== "finalizada" || !ok(p, S.c)) return;
+      (r.tipo === "clasificacion" ? r.filas : r.tipo === "posiciones" ? r.tablas.flatMap((x) => x.filas) : []).forEach((f) => { const i = MEDAL_IX[f.medalla], d = (ATH[f.refId] || INS[f.refId] || {}).departamentoId; if (i != null && DPT[d]) (t[d] = t[d] || [0, 0, 0])[i]++; }); });
+    const rows = Object.keys(t).sort((a, b) => t[b][0] - t[a][0] || t[b][1] - t[a][1] || t[b][2] - t[a][2] || DPT[a].nombre.localeCompare(DPT[b].nombre, "es"));
+    if (!rows.length) return "";
+    const th = (i, n) => '<th scope="col" class="c"><span class="nwx-gsw" aria-hidden="true">' + '<nao-award kind="medal" metal="' + METALES[i] + '" icon="none" edition="colombia" size="18" ribbon="false" shadow="false" animated="false"></nao-award></span>' + n + "</th>";
+    return fxCard("Medallería por departamento", '<div class="nwx-tbox nwx-tscroll"><table class="nwx-rtab"><thead><tr><th scope="col">#</th><th scope="col">Departamento</th>' + th(0, "Oro") + th(1, "Plata") + th(2, "Bronce") + '<th scope="col" class="c">Total</th></tr></thead><tbody>' +
+      rows.map((d, n) => "<tr><td>" + rank(n + 1) + '</td><td><span class="nwx-who"><img class="nwx-flag" src="../public/department_flags/' + slugOf(d) + '.png" alt="" width="22" height="15">' + esc(DPT[d].nombre) + "</span></td>" + t[d].map((v) => '<td class="c">' + v + "</td>").join("") + '<td class="c"><b>' + (t[d][0] + t[d][1] + t[d][2]) + "</b></td></tr>").join("") + "</tbody></table></div>", "nwx-flat");
+  };
   /* Convenciones de la grilla: se arman con las filas que de verdad se pintaron, así nunca dicen algo que no está. */
   let legOpen = false; /* solo en memoria; render() lo cierra al cambiar de nivel */
   document.addEventListener("click", (ev) => { const b = ev.target.closest && ev.target.closest(".nwx-gleg__btn"); if (!b) return; const box = b.closest(".nwx-gleg"); legOpen = !box.classList.contains("is-open"); box.classList.toggle("is-open", legOpen); b.setAttribute("aria-expanded", legOpen); });
@@ -418,10 +449,10 @@
     const tb = resultHtml(q, false, { part: "tables" }); return tb.includes("nwx-tbox") ? tb : ""; };
   const viewT = () => '<div class="nwx-view nwx-fx nwx-lens">' + (() => { const r = rowsT(); return gridOf("Regionales", r, rowsT(true)) + legend(r); })() + "</div>";
   /* Resultados lista solo deportes con algo jugado; el resto va en una nota al pie. */
-  const viewC = () => '<div class="nwx-view nwx-fx nwx-lens">' + (() => { const all = rowsC(), full = rowsC(true), r = RES ? all.filter((x) => x.stl !== "Programado") : all, rest = all.length - r.length;
-    const nota = RES && rest ? '<p class="nwx-muted nwx-porjugar">' + rest + (rest === 1 ? " deporte programado, sin resultados todavía." : " deportes programados, sin resultados todavía.") + "</p>" : "";
+  const viewC = () => '<div class="nwx-view nwx-fx nwx-lens">' + medalleria() + (() => { const all = rowsC(), full = rowsC(true), r = RES ? all.filter((x) => x.stl !== "Programado") : all, rest = all.length - r.length;
+    const det = RES && rest ? rest + (rest === 1 ? " deporte programado, sin resultados todavía." : " deportes programados, sin resultados todavía.") : "", nota = det ? '<p class="nwx-muted nwx-porjugar">' + det + "</p>" : "";
     /* La final sin deportes publicados no es «sin resultados»: muestra su calendario vacío con la ventana real. */
-    if (RES && !r.length && (FASE.regiones || all.length)) return '<div class="nwx-card">' + empty("Aún no hay resultados " + (FASE.regiones ? "en esta regional" : "de la final") + ".") + nota + "</div>";
+    if (RES && !r.length && (FASE.regiones || all.length)) return sinRes("Aún no hay resultados " + (FASE.regiones ? "en esta regional" : "de la final"), det);
     return gridOf("Deportes", r, full) + legend(r) + nota; })() + "</div>";
   const viewDgrid = () => '<div class="nwx-view nwx-fx nwx-lens">' + dayStrip(true) + (() => { const r = rowsD(); return gridOf("Pruebas", r) + legend(r); })() + "</div>";
   /* Resultados no usa días: misma grilla, con una columna «Resultado» donde iban las fechas. */
@@ -449,11 +480,13 @@
   const dayStrip = (grid, hd) => { const pool = dayPool(Object.assign({}, S.c, { sexo: "" })), ds = datedDays(pool);
     if (!ds.length) return "";
     const ax = dayAxis({ pick: new Set(ds), sel: S.d, evA: ds[0], evB: ds[ds.length - 1], days: ds }); return grid ? "" : hd ? ax.lineHd(ds) : ax.line(ds); };
-  const viewD = () => {
+  const viewD = () => { const h = viewD0(), m = autoDep() ? medalleria() : ""; return m ? h.replace('<div class="nwx-view nwx-fx nwx-lens">', '<div class="nwx-view nwx-fx nwx-lens">' + m) : h; };
+  const viewD0 = () => {
     if (!RES) return viewDgrid();
     const all = dRows(), rows = all.filter((r) => r.p.estado === "finalizada" || r.p.estado === "en-competencia"), rest = all.length - rows.length;
-    const nota = rest ? '<p class="nwx-muted nwx-porjugar">' + rest + (rest === 1 ? " prueba programada, sin resultados todavía." : " pruebas programadas, sin resultados todavía.") + "</p>" : "";
-    if (!rows.length) return '<div class="nwx-view nwx-fx nwx-lens"><div class="nwx-card">' + (all.length ? empty("Aún no hay resultados.") + nota : emptyHtml("Sin pruebas", "Con estos filtros no hay nada que mostrar en este nivel.")) + "</div></div>";
+    const det = rest ? rest + (rest === 1 ? " prueba programada, sin resultados todavía." : " pruebas programadas, sin resultados todavía.") : "", nota = det ? '<p class="nwx-muted nwx-porjugar">' + det + "</p>" : "";
+    if (!rows.length && !all.length && !FASE.regiones && FASE.inicio) return '<div class="nwx-view nwx-fx nwx-lens">' + nacVacio() + "</div>";
+    if (!rows.length) return '<div class="nwx-view nwx-fx nwx-lens">' + (all.length ? sinRes("Aún no hay resultados", det) : '<div class="nwx-card">' + emptyHtml("Sin pruebas", "Con estos filtros no hay nada que mostrar en este nivel.") + "</div>") + "</div>";
     if (!rows.some((r) => r.p.id === selD)) selD = rows[0].p.id;
     const cur = rows.filter((r) => r.p.id === selD)[0];
     return '<div class="nwx-view nwx-fx nwx-lens"><div class="nwx-dm"><div class="nwx-dmh"><span>Pruebas</span><div class="nwx-dmhd">' + dayStrip(false, true) + '</div></div><div class="nwx-dml" role="group" aria-label="Pruebas">'
@@ -507,7 +540,7 @@
   const athInst = (a, p, inst) => a.institucionId === inst || (p.nominas || []).some((n) => n.refId === inst && n.deportistas.includes(a.id));
   const inscriptions = (c0) => {
     const c = c0 || S.c, out = [];
-    /* Todas las fases reales; la muestra de la final nunca entra, ni con ?demo=nac. */
+    /* Todas las fases reales; la final de ejemplo nunca entra aquí. */
     D.participaciones.forEach((x) => { const p = PBY[x.pruebaId]; if (x.tipo === "deportista" && ATH[x.refId] && p && !p.ejemplo && ok(p, c)) out.push({ a: ATH[x.refId], p }); });
     /* Deportes de conjunto: los deportistas salen de la nómina publicada de cada equipo. */
     D.pruebas.forEach((p) => { if (!p.ejemplo && p.nominas && ok(p, c)) p.nominas.forEach((n) => n.deportistas.forEach((id) => { if (ATH[id] && !out.some((o) => o.a.id === id && o.p.id === p.id)) out.push({ a: ATH[id], p }); })); });
@@ -516,7 +549,7 @@
   const PAGE = 25; /* paginación en el cliente: el conteo y las páginas reales del servidor requieren backend */
   const nAth = (rows) => new Set(rows.map((r) => r.a.id)).size;
   const chipsHtml = () => { const n = S.c.inst && INS[S.c.inst] ? INS[S.c.inst].nombre : ""; if (!n) return "";
-    return '<div class="nwx-fchips" role="group" aria-label="Filtros activos"><span class="nwx-fchip"><small>Institución</small><b>' + esc(n) + '</b><button type="button" class="nwx-fchx" data-a="rm" data-t="inst" aria-label="Quitar el filtro de institución: ' + esc(n) + '"><span aria-hidden="true">×</span> Quitar</button></span></div>'; };
+    return '<div class="nwx-fchips" role="group" aria-label="Filtros activos"><span class="nwx-fchip"><b>' + esc(n) + '</b><button type="button" class="nwx-fchx" data-a="rm" data-t="inst" aria-label="Quitar el filtro de institución: ' + esc(n) + '"><span aria-hidden="true">×</span> Quitar</button></span></div>'; };
   const pagerHtml = (pg, pages) => pages < 2 ? "" : '<nav class="nwx-pager" aria-label="Paginación de deportistas"><button type="button" class="nwx-back-btn" data-a="pg" data-g="' + (pg - 1) + '"' + (pg <= 1 ? " disabled" : "") + '>Anterior</button><span class="nwx-pgx" aria-current="page">Página ' + pg + " de " + pages + '</span><button type="button" class="nwx-back-btn" data-a="pg" data-g="' + (pg + 1) + '"' + (pg >= pages ? " disabled" : "") + ">Siguiente</button></nav>";
   const evSelHtml = () => ENT.e ? "" : '<nav class="nwx-evsel" aria-label="Elegir evento">' + Object.keys(EVT_LABEL).map((k) => '<a class="nwx-evcard" href="?entrada=deportistas&e=' + k + '"><small>Evento</small><b>' + EVT_LABEL[k] + "</b></a>").join("") + "</nav>";
   const viewDeportistas = () => {
@@ -574,12 +607,13 @@
     const dep = DPT[a.departamentoId] || {}, ins = a.institucionId && INS[a.institucionId] ? INS[a.institucionId].nombre : "";
     const deps = [...new Set(ps.map((p) => DEPO[p.deporteId].nombre))];
     const TROPHY = '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#f2c230" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>';
-    return '<div class="nwx-view nwx-fx">' + BACK + '<div class="nwx-prof"><aside class="nwx-pside"><span class="nwx-photo">' + PERSON + '</span><h2>' + esc(a.nombre) + "</h2>" + (ins ? '<p class="nwx-inst">' + esc(ins) + "</p>" : "") +
-      '<div class="nwx-info"><div><small>Departamento</small><b>' + (dep.nombre ? flagHtml(id) + esc(dep.nombre) : "—") + '</b></div><div><small>Sexo</small><b>' + esc(SEXO_LABEL[a.sexo] || "—") + "</b></div></div>" +
+    return '<div class="nwx-view nwx-fx">' + BACK + '<div class="nwx-prof"><aside class="nwx-pside"><span class="nwx-photo">' + PERSON + '</span><h2>' + esc(a.nombre) + "</h2>" +
+      '<div class="nwx-info"><div><small>Institución</small><b>' + (ins ? esc(ins) : "—") + '</b></div><div><small>Departamento</small><b>' + (dep.nombre ? flagHtml(id) + esc(dep.nombre) : "—") + '</b></div><div><small>Sexo</small><b>' + esc(SEXO_LABEL[a.sexo] || "—") + "</b></div></div>" +
+      '<div class="nwx-info nwx-info1"><div><small>Deporte</small><b>' + (deps.length ? esc(deps.join(", ")) : "—") + "</b></div></div>" +
       '</aside>' +
       '<div class="nwx-pmain"><div class="nwx-stage"><span class="nwx-trophy">' + TROPHY + '</span><div><small>Fase</small><b>' + esc([...new Set(ps.map((p) => FASE_LABEL[faseOf(p).clave]).filter(Boolean))].join(" · ") || "Regional") + "</b></div></div>" +
       '<div class="nwx-sport"><small>Deporte</small><div class="nwx-pills">' + (deps.length ? deps.map((d) => '<span class="nwx-pill">' + esc(d) + "</span>").join("") : "—") + "</div></div><h3>Prueba</h3>" +
-      (ps.length ? '<div class="nwx-plist">' + eHead() + ps.map((p) => rowHtml(p, lugar(p))).join("") + "</div>" : '<div class="nwx-none">Todavía no tiene pruebas programadas en esta fase.</div>') + "</div></div></div>";
+      (ps.length ? '<div class="nwx-plist">' + eHead() + ps.map((p) => rowHtml(p, lugar(p), id)).join("") + "</div>" : '<div class="nwx-none">Todavía no tiene pruebas programadas en esta fase.</div>') + "</div></div></div>";
   };
   const REGIMG = {"atletismo|amazonia orinoquia": "public/images/regionales/amazonia-orinoquia.jpg", "atletismo|centro sur pacifico": "public/images/galeria/N2.jpeg", "atletismo|centro oriente eje cafetero": "public/images/regionales/centro-oriente-eje-cafetero.jpg", "atletismo|caribe 1 caribe 2": "public/images/regionales/caribe-1-caribe-2.jpg", "conjuntos|pacifico": "public/images/galeria/N1.jpeg", "conjuntos|orinoquia": "public/images/galeria/N2.jpeg", "conjuntos|eje cafetero": "public/images/galeria/N3.jpeg", "conjuntos|centro sur": "public/images/galeria/N4.jpeg", "conjuntos|centro oriente": "public/images/galeria/N5.jpeg", "conjuntos|caribe 1": "public/images/galeria/N6.jpeg", "conjuntos|caribe 2": "public/images/galeria/N7.jpeg", "conjuntos|amazonia": "public/images/galeria/N8.jpeg"};
   const nkey = (s) => norm(s).replace(/[^a-z0-9]+/g, " ").trim();
@@ -610,38 +644,39 @@
     const deporteGroups = Object.keys(EVT_LABEL).map((t) => [EVT_LABEL[t], D.deportes.filter((d) => d.tipo === t).map((d) => ["deporte", d.id, d.nombre])]);
     /* En Deportistas el departamento no depende de la regional: salen los presentes entre los deportistas del alcance. */
     const deptsPres = () => { const b = Object.assign({}, c); delete b.depto; const ids = new Set(inscriptions(b).map((r) => r.a.departamentoId).filter(Boolean)); if (c.depto) ids.add(c.depto); return [...ids].filter((id) => DPT[id]).map((id) => ["depto", id, DPT[id].nombre]).sort((a, b2) => a[2].localeCompare(b2[2], "es")); };
-    const geo = { title: "Dónde", total: 2, n: (c.regional ? 1 : 0) + (c.depto ? 1 : 0), levels: [{ t: "regional", label: "Regional", opts: regionalOpts() }] };
+    const geo = { title: "Evento", total: 2, n: (c.regional ? 1 : 0) + (c.depto ? 1 : 0), levels: [{ t: "regional", label: "Regional", opts: regionalOpts() }] };
     if (!LENS) geo.levels.push({ t: "depto", label: "Departamento", opts: deptsPres() });
     else if (c.regional) geo.levels.push({ t: "depto", label: "Departamento", opts: deptoOpts() });
     const spTot = single ? 1 : 2;
     const sp = { title: "Qué deporte", total: spTot, n: c.prueba || (single && c.deporte) ? spTot : c.deporte ? 1 : 0, levels: [{ t: "deporte", label: "Deporte", groups: deporteGroups }] };
     if (c.deporte && !single) sp.levels.push({ t: "prueba", label: "Prueba", opts: disciplinas(c.deporte).map((d) => ["prueba", d, d]) });
-    const lvC = [];
-    const sx = { title: LENS ? "Participantes" : "Sexo", total: 1, n: c.sexo ? 1 : 0,
+    const cats = LENS ? attrOpts(c).cats : [];
+    const lvC = cats.length ? [{ t: "cat", label: "Edad", seg: true, opts: cats.map((k) => ["cat", k, k]) }] : [];
+    const sx = { title: LENS ? "Categoría" : "Sexo", total: lvC.length + 1, n: (c.sexo ? 1 : 0) + (c.cat ? 1 : 0),
       levels: [{ t: "sexo", label: "Sexo", seg: true, opts: [["sexo", "H", "Hombre"], ["sexo", "M", "Mujer"], ["sexo", "MX", "Mixto"]] }].concat(lvC) };
     if (LENS) {
       /* Prueba y Partido se navegan por la grilla y el camino, no por filtros (DC-155/176/177/181). */
-      const pq = PBY[S.p], deps = D.deportes.filter((d) => d.tipo === ENT.e && PRUEBAS.some((q) => q.deporteId === d.id && (!c.regional || q.regionalId === c.regional)));
+      const pq = PBY[S.p], deps = D.deportes.filter((d) => (!ENT.e || d.tipo === ENT.e) && PRUEBAS.some((q) => q.deporteId === d.id && (!c.regional || q.regionalId === c.regional)));
       const spL = { title: "Qué deporte", total: 1, n: c.deporte ? 1 : 0, levels: [{ t: "deporte", label: "Deporte", opts: deps.map((d) => ["deporte", d.id, d.nombre]) }] };
-      const sxL = pq ? { title: "Participantes", total: 1, n: 1, fixed: pq, levels: [] } : sx;
+      const sxL = pq ? { title: "Categoría", total: 1, n: 1, fixed: pq, levels: [] } : sx;
       /* En la final no hay dónde que elegir: el carril «Dónde» no se muestra y la franja queda en dos. */
       if (!FASE.regiones) { const fx = (title, v, note) => ({ title, total: 1, n: 1, fixedHtml: fixedVal(title, v, note), levels: [] });
-        return [autoDep() ? fx("Qué deporte", deps[0].nombre, "La define el evento") : deps.length ? spL : fx("Qué deporte", "Por publicar", ""), sxL]; } /* la sede única de la final no se muestra: no se puede cambiar */
+        return [autoDep() ? fx("Qué deporte", depsCat()[0].nombre, "La define el evento") : deps.length ? spL : fx("Qué deporte", "Por publicar", ""), sxL]; } /* la sede única de la final no se muestra: no se puede cambiar */
       return [spL, geo, sxL];
     }
     return [sp, geo, sx];
   };
   const LOCK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
   /* Sexo y Categoría son atributos de la prueba: desde ese nivel quedan fijos, no son filtros. */
-  const fixedAttr = (p) => { const seg = (label, opts, on) => (label === "Sexo" ? "" : '<span class="nwx-cap">' + label + '</span>') + '<div class="nwx-seg is-fixed" role="group" aria-label="' + label + ' (la define la prueba)">' + opts.map((o) => '<button type="button" class="nwx-segb' + (o === on ? " on" : "") + '" aria-pressed="' + (o === on) + '" disabled>' + esc(o) + "</button>").join("") + "</div>";
+  const fixedAttr = (p) => { const seg = (label, opts, on) => '<div class="nwx-seg is-fixed" role="group" aria-label="' + label + ' (la define la prueba)">' + opts.map((o) => '<button type="button" class="nwx-segb' + (o === on ? " on" : "") + '" aria-pressed="' + (o === on) + '" disabled>' + esc(o) + "</button>").join("") + "</div>";
     /* Sin sexo definido no se apagan los botones: un único botón encendido lo dice. */
-    const sx = p.sexo ? seg("Sexo", ["Todos", "Hombre", "Mujer", "Mixto"], SEXO_LABEL[p.sexo]) : seg("Sexo", ["Sin sexo definido"], "Sin sexo definido");
-    const ct = "";
+    const sx = p.sexo ? seg("Sexo", ["Todos los sexos", "Hombre", "Mujer", "Mixto"], SEXO_LABEL[p.sexo]) : seg("Sexo", ["Sin sexo definido"], "Sin sexo definido");
+    const ct = p.categoria ? seg("Edad", ["Todas las edades"].concat(CATSALL), p.categoria) : ""; /* sin categoría no se inventa un rótulo */
     return sx + ct + '<p class="nwx-fixnote">' + LOCK + (p.sexo ? "La define la prueba" : "Prueba sin sexo definido") + "</p>"; };
   const CATSALL = [...new Set(PRUEBAS.map((q) => q.categoria).filter(Boolean))].sort((a, b) => (CORDER.indexOf(a) + 1 || 99) - (CORDER.indexOf(b) + 1 || 99));
   const fixedVal = (label, v, note) => '<div class="nwx-seg is-fixed" role="group" aria-label="' + esc(note ? label + " (" + note.toLowerCase() + ")" : label) + '"><button type="button" class="nwx-segb on" aria-pressed="true" disabled>' + esc(v) + '</button></div>' + (note ? '<p class="nwx-fixnote">' + LOCK + esc(note) + "</p>" : "");
   const segHtml = (lv) => { const cur = S.c[lv.t], on = (x) => (x[1] ? cur === x[1] : !cur);
-    return (lv.cap ? '<span class="nwx-cap">' + esc(lv.cap) + "</span>" : "") + '<div class="nwx-seg" role="group" aria-label="' + esc(lv.label) + '">' + [["", "", lv.t === "cat" ? "Todas" : "Todos"]].concat(lv.opts).map((x) => '<button type="button" class="nwx-segb' + (on(x) ? " on" : "") + '" aria-pressed="' + on(x) + '" data-a="' + (!x[1] || cur === x[1] ? "rm" : "pick") + '" data-t="' + (x[0] || lv.t) + '" data-v="' + esc(x[1]) + '">' + esc(x[2]) + "</button>").join("") + "</div>"; };
+    return (lv.cap ? '<span class="nwx-cap">' + esc(lv.cap) + "</span>" : "") + '<div class="nwx-seg" role="group" aria-label="' + esc(lv.label) + '">' + [["", "", lv.t === "cat" ? "Todas las edades" : lv.t === "sexo" ? "Todos los sexos" : "Todos"]].concat(lv.opts).map((x) => '<button type="button" class="nwx-segb' + (on(x) ? " on" : "") + '" aria-pressed="' + on(x) + '" data-a="' + (!x[1] || cur === x[1] ? "rm" : "pick") + '" data-t="' + (x[0] || lv.t) + '" data-v="' + esc(x[1]) + '">' + esc(x[2]) + "</button>").join("") + "</div>"; };
   const fixedReg = (lv) => lv.t === "regional" && ENTRADA === "eventos"; /* viniendo de Eventos y fases la regional solo se cambia */
   const selHtml = (lv) => {
     if (lv.seg) return segHtml(lv);
@@ -668,7 +703,7 @@
     const toB = level() === entryLvl() ? "" : hrefOf(LV.B());
     /* Subir por el camino conserva los filtros de sexo y categoría vigentes. */
     const keep = (o) => Object.assign({ tipo: ENT.e }, o, S.c.sexo ? { sexo: S.c.sexo } : null, S.c.cat ? { cat: S.c.cat } : null, S.c.inst ? { inst: S.c.inst } : null);
-    const it = [["Viendo", VISTA, ""], ["Evento", EVT_LABEL[ENT.e] || "", toB], ["Fase", FASE_LABEL[faseNow()] + (reg ? "" : " · Bogotá"), toB]];
+    const it = [["Viendo", VISTA, ""]].concat(ENT.e ? [["Evento", EVT_LABEL[ENT.e] || "", toB]] : [], [["Fase", FASE_LABEL[faseNow()] + (reg ? "" : " · Bogotá"), toB]]);
     if (reg && S.todas) it.push(["Regional", "Todas", hrefOf(LV.T())]);
     if (r) it.push(["Regional", r.nombre, hrefOf({ c: keep({ regional: r.id }) })]);
     if (r && S.c.depto && DPT[S.c.depto]) it.push(["Departamento", DPT[S.c.depto].nombre, hrefOf({ c: keep({ regional: r.id, depto: S.c.depto }) })]);
@@ -694,7 +729,7 @@
     const alone = !keys.length && !S.ficha;
     const fx = (k, lbl, v) => '<span class="nwx-cg' + nw(k + v) + '"><small class="nwx-cl">' + lbl + '</small><span class="nwx-c is-fixed" title="' + esc(v) + ' · se cambia desde el menú ' + (ENTRADA === "deportistas" ? "Deportistas" : "Eventos y Fases") + '">' + esc(v) + "</span></span>";
     const out = ['<span class="nwx-cg' + nw("v") + '"><small class="nwx-cl">Viendo</small>' + (alone ? '<span class="nwx-c is-cur is-wide is-fixed">' + VISTA + "</span>" : '<button type="button" class="nwx-c is-link is-fixed" data-a="root" title="' + VISTA + '">' + VISTA + "</button>") + "</span>"];
-    if (S.c.tipo) out.push(fx("tipo", "Evento", EVT_LABEL[S.c.tipo]));
+    if (S.c.tipo && FASE.regiones) out.push(fx("tipo", "Evento", EVT_LABEL[S.c.tipo]));
     if (ENTRADA !== "deportistas") out.push(fx("fase", "Fase", FASE_LABEL[faseNow()]));
     rest.forEach((k, i) => {
       const cur = !S.ficha && i === rest.length - 1, v = valLabel(k, S.c[k]);
@@ -743,14 +778,25 @@
     if (norm(q).length >= 3) {
       const all = INDEX.filter((x) => (!LENS || x.k === "inst") && (norm(x.label).includes(norm(q)) || norm(x.sub).includes(norm(q))));
       const res = all.filter((x) => fit(x.k, x.id));
+      const rrow = (x) => '<button type="button" class="nwx-rrow" data-a="spick" data-k="' + x.k + '" data-id="' + esc(x.id) + '">' + "<span>" + esc(x.label) + "</span>" + (x.k === "inst" && depBadge(x.id) ? depBadge(x.id) : x.sub ? '<span class="nwx-dep" title="' + esc(x.sub) + '">' + esc(x.sub) + "</span>" : "") + "</button>";
       let body = "";
       GROUPS.forEach((g) => {
         const it = res.filter((x) => x.group === g);
         if (!it.length) return;
-        body += "<h5>" + g + " (" + it.length + ")</h5>" + it.slice(0, 5).map((x) => '<button type="button" class="nwx-rrow" data-a="spick" data-k="' + x.k + '" data-id="' + esc(x.id) + '">' + "<span>" + esc(x.label) + "</span>" + (x.k === "inst" && depBadge(x.id) ? depBadge(x.id) : x.sub ? '<span class="nwx-dep" title="' + esc(x.sub) + '">' + esc(x.sub) + "</span>" : "") + "</button>").join("") + (it.length > 5 ? '<p class="nwx-muted" style="margin:.25rem .625rem">… y ' + (it.length - 5) + " más: afina la búsqueda</p>" : "");
+        body += "<h5>" + g + " (" + it.length + ")</h5>" + it.slice(0, 5).map(rrow).join("") + (it.length > 5 ? '<p class="nwx-muted" style="margin:.25rem .625rem">… y ' + (it.length - 5) + " más: afina la búsqueda</p>" : "");
       });
-      h += '<div class="nwx-sec"><h4>Sugerencias de búsqueda</h4>' + (body || '<p style="margin:.25rem .625rem">' + (all.length ? "Hay coincidencias para «" + esc(q) + "», pero ninguna dentro de tus filtros activos." : "No encontramos «" + esc(q) + "».") + '</p><button type="button" class="nwx-link" data-a="clearq" style="margin:.25rem .625rem">Limpiar búsqueda</button>') + "</div>";
-    }
+      /* Sin resultado exacto se ofrece algo: coincidencia por palabra suelta o, si no, lo que sí hay en esta vista. */
+      let vacio = "";
+      if (!body) {
+        const pal = norm(q).split(/\s+/).filter((w) => w.length >= 3), buscable = (x) => (!LENS || x.k === "inst") && fit(x.k, x.id);
+        const parc = INDEX.filter((x) => buscable(x) && pal.some((w) => norm(x.label).includes(w))).slice(0, 5);
+        const disp = parc.length ? [] : INDEX.filter(buscable).slice(0, 5);
+        vacio = '<p style="margin:.25rem .625rem">' + (all.length ? "Hay coincidencias para «" + esc(q) + "», pero ninguna dentro de tus filtros activos." : "No encontramos «" + esc(q) + "»" + (LENS ? " entre las instituciones de esta vista." : ".")) + "</p>" +
+          (parc.length ? "<h5>Coincidencias parciales</h5>" + parc.map(rrow).join("") : disp.length ? "<h5>" + (LENS ? "Instituciones con datos en esta vista" : "Algunas opciones") + "</h5>" + disp.map(rrow).join("") : "") +
+          '<button type="button" class="nwx-link" data-a="clearq" style="margin:.25rem .625rem">Limpiar búsqueda</button>';
+      }
+      h += '<div class="nwx-sec"><h4>Sugerencias de búsqueda</h4>' + (body || vacio) + "</div>";
+    } else if (q) h += '<p class="nwx-muted" style="margin:.25rem .625rem">Escribe al menos 3 letras para buscar.</p>';
     /* La nota es el mensaje inicial del desplegable: con texto escrito ya no se muestra. */
     if (LENS) return q ? h : '<p class="nwx-muted" style="margin:.25rem .625rem">Escribe para buscar un deportista, deporte, prueba, departamento o institución.</p><p class="nwx-muted" style="margin:.25rem .625rem">Solo instituciones con datos publicados.</p>';
     const rec = recents().filter((x) => fit(x.k, x.id));
@@ -761,7 +807,7 @@
   };
 
   /* ── Montaje ─────────────────────────────────────────────── */
-  root.innerHTML = '<div id="nwx-live" class="nwx-sr" role="status" aria-live="polite"></div>' + (DEMO ? '<p class="nwx-demo" role="note">Datos de ejemplo, no publicables · ?demo=nac</p>' : "") + '<div id="nwx-top" class="nwx-top"><nav id="nwx-crumbs" class="nwx-crumbs" aria-label="Estás consultando"></nav></div><div id="nwx-dock" class="nwx-dock"><div id="nwx-estas" class="nwx-estas"></div></div><div id="nwx-filtros" class="nwx-card"><div class="nwx-lanes" id="nwx-lanes"></div></div>' +
+  root.innerHTML = '<div id="nwx-live" class="nwx-sr" role="status" aria-live="polite"></div>' + (DEMO && !FASE.regiones ? '<p class="nwx-demo" role="note">Final de ejemplo: datos ficticios, no publicables</p>' : "") + '<div id="nwx-top" class="nwx-top"><nav id="nwx-crumbs" class="nwx-crumbs" aria-label="Estás consultando"></nav></div><div id="nwx-dock" class="nwx-dock"><div id="nwx-estas" class="nwx-estas"></div></div><div id="nwx-filtros" class="nwx-card"><div class="nwx-lanes" id="nwx-lanes"></div></div>' +
     '<div class="nwx-search" id="nwx-search"><input id="nwx-q" class="nwx-input" type="search" autocomplete="off" aria-label="Buscar" placeholder="Buscar deportista, institución, deporte, prueba o departamento"><div class="nwx-pop" id="nwx-pop" hidden></div></div>' +
     '<div id="nwx-view"></div>';
   const $q = document.getElementById("nwx-q"), $pop = document.getElementById("nwx-pop");
@@ -777,7 +823,7 @@
     if (lvl === "B") return { que: t === "conjunto" ? "Regionales de conjunto" : "Regionales de atletismo", apoyo: RES ? "Sigue el minuto a minuto de los eventos de esta fase" : "Sigue el minuto a minuto de los eventos de esta fase" };
     if (lvl === "T") return { que: "Todas las regionales de " + (EVT_LABEL[t] || "").toLowerCase() };
     if (lvl === "C") return { que: FASE.regiones ? "Deportes de la Regional " + r.nombre : "Deportes de la Fase final nacional" };
-    if (lvl === "D") return { que: "Pruebas de " + dep.nombre + (FASE.regiones ? "" : " · Fase final nacional") };
+    if (lvl === "D") return { que: "Pruebas de " + dep.nombre + (FASE.regiones ? "" : " · Final nacional") };
     if (lvl === "E") return { que: (encsOf(p).some(isTeam) ? "Partidos de " : "Series de ") + dep.nombre + " · " + plab(p) };
     return { que: elab(e) + " · " + [rondaOf(p, e), e.grupo ? "Grupo " + e.grupo : ""].filter(Boolean).join(" · ") };
   };
@@ -835,7 +881,7 @@
       E: "Cargando los partidos de " + (p ? plab(p) : "") + "…", F: "Cargando " + (e ? elab(e) : "el partido") + "…" }[lvl];
   };
   const loaderHtml = () => {
-    const deps = D.deportes.filter((d) => d.tipo === ENT.e).slice(0, 4);
+    const deps = D.deportes.filter((d) => !ENT.e || d.tipo === ENT.e).slice(0, 4);
     const icons = deps.map((d, i) => '<span class="nwx-lic ' + (TINT[d.id] || "bg-calendar-orange") + '" style="animation-delay:' + i * 120 + 'ms;color:#e4403a">' + (ICON[d.id] || ICON.fds) + "</span>").join("");
     return '<div class="nwx-load" role="status" aria-live="polite"><div class="nwx-lgrp"><span class="nwx-licons" aria-hidden="true">' + icons + '</span><b>' + esc(loadingText()) + '</b><div class="nwx-lbar" aria-hidden="true"></div></div></div>';
   };
@@ -914,7 +960,7 @@
     const a = b.dataset.a, d = b.dataset;
     if (a === "pg") { S.pg = Math.max(1, +d.g || 1); pgScroll = true; nav(); return; }
     if (a === "pick") S.c = setC(S.c, d.t, d.v);
-    else if (a === "rm") S.c = rmC(S.c, d.t);
+    else if (a === "rm") rmSel(d.t);
     else if (a === "clear") { S.c = ENT.e ? { tipo: ENT.e } : {}; S.ficha = ""; S.d = ""; S.dAll = false; }
     else if (a === "root") { S.c = ENT.e ? { tipo: ENT.e } : {}; S.ficha = ""; S.d = ""; S.dAll = false; }
     else if (a === "copy") { copyLink(b); return; }
@@ -952,9 +998,9 @@
   root.addEventListener("change", (e) => {
     const s = e.target.closest("select[data-sel]"); if (!s || !s.value) return;
     const i = s.value.indexOf(":"), t = s.value.slice(0, i), v = s.value.slice(i + 1);
-    if (t === "rm") S.c = rmC(S.c, v);
+    if (t === "rm") rmSel(v);
     else {
-      if (t === "deporte" && DEPO[v] && ENT.e && DEPO[v].tipo !== ENT.e) { ENT.e = DEPO[v].tipo; try { sessionStorage.setItem("nwx-entrada", ENT.e + "|" + ENT.f); } catch (x) { /* sin storage */ } const prevReg = S.c.regional && REG[S.c.regional]; S.c = { tipo: ENT.e };
+      if (t === "deporte" && FASE.regiones && DEPO[v] && ENT.e && DEPO[v].tipo !== ENT.e) { ENT.e = DEPO[v].tipo; try { sessionStorage.setItem("nwx-entrada", ENT.e + "|" + ENT.f); } catch (x) { /* sin storage */ } const prevReg = S.c.regional && REG[S.c.regional]; S.c = { tipo: ENT.e };
         if (prevReg) { const mine = new Set(prevReg.departamentoIds), best = REGIONALES.filter((r) => regTipo(r.id) === ENT.e).map((r) => [r, r.departamentoIds.filter((d) => mine.has(d)).length]).sort((x, y) => y[1] - x[1])[0]; if (best) S.c.regional = best[0].id; } }
       S.c = setC(S.c, t, v);
     }

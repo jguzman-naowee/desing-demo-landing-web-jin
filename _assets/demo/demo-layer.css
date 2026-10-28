@@ -180,3 +180,9 @@ a.dl-hov[aria-label^="Ver "]{box-shadow:0 10px 24px rgba(20,22,38,.18)}
 .dl-mb .dl-tx{border-left:0;border-top:1px solid var(--dl-line);columns:2;column-gap:32px;padding:18px 24px 24px}
 .dl-mb .dl-tx>*{break-inside:avoid}
 @media (max-width:900px){.dl-pair{grid-template-columns:1fr}.dl-pair .dl-shot-now{border-left:0}.dl-mb .dl-tx{columns:1}}
+
+.dl-sw{flex:1 0 100%;justify-content:flex-start;display:inline-flex;align-items:center;gap:8px;font:600 12px/1 inherit;color:var(--dl-ink);background:none;border:1px solid var(--dl-line,#d9d4e3);border-radius:999px;padding:6px 10px;cursor:pointer}
+.dl-sw i{width:26px;height:14px;border-radius:999px;background:#c9c3d6;position:relative;transition:background .15s}
+.dl-sw i::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:#fff;transition:transform .15s}
+.dl-sw[aria-checked="true"] i{background:#5b2d86}
+.dl-sw[aria-checked="true"] i::after{transform:translateX(12px)}

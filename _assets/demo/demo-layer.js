@@ -429,6 +429,8 @@
     render();
   }
 
+  /* Interruptor de la final ficticia: lo lee explorador.js al cargar, por eso recarga. Apagado por defecto. */
+  const finalOn = () => { try { return localStorage.getItem("nwx-demo-final") === "1"; } catch (e) { return false; } };
   /* ── Vista: cajón, barra inferior, modal ── */
   const disabledReason = (c) => { if (!D()) return ""; try { c.steps.forEach((s) => { if (s.url) s.url(); if (typeof s.sel === "function") s.sel(); if (s.value) s.value(); }); return ""; } catch (e) { return e.message; } };
   function sheetHtml() {
@@ -437,7 +439,7 @@
     const cur = caso(S.sel) && caso(S.sel).obj === S.obj ? caso(S.sel) : list[0];
     const cases = list.map((c) => { const why = disabledReason(c); return '<li class="dl-row"><button type="button" class="dl-case' + (cur && c.id === cur.id ? " on" : "") + '" data-dl="sel" data-id="' + c.id + '"><span class="dl-n">' + c.id + '</span><span class="dl-ct"><b>' + esc(c.titulo) + "</b><small>" + (why ? esc(why) : c.clics && c.clics[0] ? c.clics[0] + " → " + c.clics[1] + " clics" : "clic a clic, automatizado") + '</small></span></button><button type="button" class="dl-btn dl-play" data-dl="play" data-id="' + c.id + '"' + (why ? " disabled" : "") + ' aria-label="Automatizar caso ' + c.id + '" title="Automatizar">▶</button></li>'; }).join("");
     const info = cur ? '<p class="dl-p">' + esc(cur.banner) + '</p><p class="dl-falta"><b>Pendiente</b> ' + esc(cur.falta) + "</p>" : "";
-    return '<div class="dl-handle"></div><div class="dl-head"><button type="button" class="dl-x" data-dl="close" aria-label="Cerrar demo">×</button><span class="dl-pt">Panel demo</span></div>' +
+    return '<div class="dl-handle"></div><div class="dl-head"><button type="button" class="dl-x" data-dl="close" aria-label="Cerrar demo">×</button><span class="dl-pt">Panel demo</span><button type="button" class="dl-sw" data-dl="final" role="switch" aria-checked="' + finalOn() + '"><i aria-hidden="true"></i>' + (finalOn() ? "Desactivar" : "Activar") + ' final de ejemplo</button></div>' +
       '<div class="dl-objs" role="group" aria-label="Objetivos">' + objs + '</div><div class="dl-body"><div class="dl-col"><div class="dl-k">LO QUE VERÁS</div>' + info + '</div><div class="dl-col"><div class="dl-k">CASOS · PULSA PARA AUTOMATIZAR</div><ul class="dl-cases">' + cases + '</ul></div></div>';
   }
   /* La barra se arma una vez y se actualiza en su sitio: rehacerla con innerHTML le quitaba el foco de teclado al botón pulsado. */
@@ -489,6 +491,7 @@
   /* ── Eventos: los clics de la capa no llegan a document, así no cierran el menú ni las sugerencias del sitio ── */
   function onAction(t, e) {
     const a = t.dataset.dl;
+    if (a === "final") { try { finalOn() ? localStorage.removeItem("nwx-demo-final") : localStorage.setItem("nwx-demo-final", "1"); } catch (e) { /* sin storage */ } location.reload(); return; }
     if (a === "close") { S.open = false; }
     else if (a === "obj") { S.obj = +t.dataset.n; ss.set(K_OBJ, S.obj); }
     else if (a === "sel") { S.sel = t.dataset.id; }

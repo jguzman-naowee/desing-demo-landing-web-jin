@@ -64,3 +64,10 @@ section.relative.w-full > div.mx-auto > div.flex{gap:1.5rem!important}
 .nwx-docs-card--sm:focus-visible{outline:3px solid #602a8c;outline-offset:2px}
 @media (max-width:768px){.nwx-docs-big{grid-template-columns:1fr}.nwx-docs-small{grid-template-columns:1fr 1fr}}
 @media (max-width:639px){.nwx-docs-small{grid-template-columns:1fr}}
+
+/* Menús por fase: chip de grupo, ayuda de la final y enlaces táctiles */
+.nwx-chip{display:inline-block;background:var(--color-JIN6-foundations-violeta,#602a8c);color:#fff;border-radius:9999px;padding:.125rem .75rem;font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.nwx-fayuda{display:block;padding:0 .5rem .25rem;font-size:.75rem;opacity:.7}
+.nwx-mm{display:inline-flex;align-items:center;min-height:44px}
+a[aria-current=page] .nwx-mi,a.nwx-mm[aria-current=page]{font-weight:700;background:var(--color-accent,#f4f4f5)}
+a:focus-visible .nwx-mi,a.nwx-mm:focus-visible{outline:2px solid var(--color-JIN6-foundations-violeta,#602a8c);outline-offset:2px}
