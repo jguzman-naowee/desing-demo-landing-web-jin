@@ -12,7 +12,7 @@ Demo navegable del nuevo flujo **Eventos y fases · Resultados · Deportistas** 
 
 ## Qué contiene
 
-- `explorador/`: la vista nueva (calendario, resultados y deportistas).
+- `calendario/`, `resultados/` y `deportistas/`: las tres lentes del explorador (mismo código; la ruta decide la lente). `explorador/?entrada=` queda solo para enlaces viejos.
 - `_assets/demo/`: la capa de la demo (`demo-layer.js`, `demo-casos.js`, `demo-layer.css`) y las capturas `antes/` y `ahora/`.
 - El resto de páginas (inicio, noticias, soporte, términos) completa la navegación del sitio.
 

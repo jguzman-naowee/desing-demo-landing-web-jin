@@ -4,7 +4,8 @@
   const script = document.currentScript;
   const ROOT = script.dataset.root || "./";
   const href = (p) => ROOT + p + "/index.html";
-  const EXP = ROOT + "explorador/index.html?entrada=";
+  const RUTAS = { eventos: "calendario", resultados: "resultados", deportistas: "deportistas" };
+  const EXP = (lente) => ROOT + RUTAS[lente] + "/";
   const LINK = "text-JIC-violet-900 hover:text-JIC-violet-900/80 text-base font-medium transition-colors dark:text-dark-accent dark:hover:text-white";
   const ITEM = "nw-menu-item relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden transition-colors";
   const MENU = "z-1000 w-56 z-50 min-w-32 overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md";
@@ -15,15 +16,15 @@
   window.NWX_FINAL_PUBLICADA = FINAL_PUBLICADA;
   const FINAL_AYUDA = "Del 13 al 30 de noviembre · Bogotá";
   const DEMO = true;
-  const dest = (lente, e, f) => EXP + lente + "&e=" + e + "&f=" + f + (f === "NAC" && DEMO ? "&demo=nac" : "");
+  const dest = (lente, e, f) => EXP(lente) + "?e=" + e + "&f=" + f + (f === "NAC" && DEMO ? "&demo=nac" : "");
   /* Las dos entradas abren el mismo popover y llevan al explorador ya filtrado por evento y fase. */
   const ICO_ATL = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><path d="M9 2h6M12 14l3-3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="12" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>', ICO_BAL = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M2 12h20M12 2v20M5 5c4 3 4 11 0 14M19 5c-4 3-4 11 0 14" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>';
   /* Primer criterio la fase; debajo, los dos eventos. Cada enlace conserva evento y fase como contexto fijo del explorador. */
   const GRUPOS = [["REG", "Fase regional"], ["NAC", "Fase final nacional"]];
   const EVENTOS = [["individual", "Deportes individuales", ICO_ATL], ["conjunto", "Deportes de conjunto", ICO_BAL]];
   const VIOLETA = "var(--color-JIN6-foundations-violeta,#602a8c)";
-  const _q = new URLSearchParams(location.search), _en = { dia: "eventos", "calendario-resultados": "resultados" }[_q.get("entrada")] || _q.get("entrada");
-  const actual = (lente, e, f) => /explorador\/$|explorador\/index\.html$/.test(location.pathname) && _en === lente && _q.get("e") === e && (_q.get("f") === "NAC" ? "NAC" : "REG") === f;
+  const _q = new URLSearchParams(location.search);
+  const actual = (lente, e, f) => new RegExp("/" + RUTAS[lente] + "(/index\\.html|/)?$").test(location.pathname) && _q.get("e") === e && (_q.get("f") === "NAC" ? "NAC" : "REG") === f;
   const chip = (t) => `<span aria-hidden="true" style="font-weight:700;font-size:.875rem;color:${VIOLETA}">${t}</span>`;
   const fasesHtml = (lente) => GRUPOS.map(([f, t], i) => {
     const off = f === "NAC" && !FINAL_PUBLICADA;
@@ -33,12 +34,12 @@
         : `<a href="${dest(lente, e, f)}" class="${LINK}"${actual(lente, e, f) ? ' aria-current="page"' : ""}><div role="menuitem" class="${ITEM} nwx-mi"><span style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:${VIOLETA}">${ic}</span>${n}</span></div></a>`).join("") + "</div>";
   }).join("");
   /* Deportistas no depende de la fase: solo ofrece el evento. */
-  const eventos = [["Deportes individuales", EXP + "deportistas&e=individual"], ["#d"], ["Deportes de conjunto", EXP + "deportistas&e=conjunto"]];
+  const eventos = [["Deportes individuales", EXP("deportistas") + "?e=individual"], ["#d"], ["Deportes de conjunto", EXP("deportistas") + "?e=conjunto"]];
   const MENUS = {
     Deportistas: eventos,
     "Eventos y fases": () => fasesHtml("eventos"),
     Resultados: () => fasesHtml("resultados"),
-    "Desarrollo de Juegos": [["Resultados", EXP + "resultados"], ["Deportistas", EXP + "deportistas"], ["Inscríbete aquí", login, true]],
+    "Desarrollo de Juegos": [["Resultados", EXP("resultados")], ["Deportistas", EXP("deportistas")], ["Inscríbete aquí", login, true]],
   };
 
   /* ── Dropdowns (Radix) ─────────────────────────────── */
@@ -139,7 +140,7 @@
             ${movil("Resultados", "resultados")}
             <div class="flex flex-col items-center gap-3">
               <button type="button" data-reg aria-expanded="false" class="${L}">Deportistas ▾</button>
-              <div data-reg-list class="hidden flex-col items-center gap-3 text-base">${a("Deportes individuales", EXP + "deportistas&e=individual")}${a("Deportes de conjunto", EXP + "deportistas&e=conjunto")}</div>
+              <div data-reg-list class="hidden flex-col items-center gap-3 text-base">${a("Deportes individuales", EXP("deportistas") + "?e=individual")}${a("Deportes de conjunto", EXP("deportistas") + "?e=conjunto")}</div>
             </div>
             ${a("Noticias", href("noticias"))}
             ${a("Medalleria 2025", ROOT + "public/pdfs/analisis_medallas_comite.pdf", true)}

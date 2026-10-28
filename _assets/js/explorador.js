@@ -22,22 +22,27 @@
   const SEXO_LABEL = { H: "Hombre", M: "Mujer", MX: "Mixto" };
   const ORDER = ["tipo", "deporte", "prueba", "regional", "depto", "sexo", "cat", "inst"];
   const EVT_LABEL = { individual: "Deportes individuales", conjunto: "Deportes de conjunto" }, FASE_LABEL = { REG: "Regional", NAC: "Final nacional" };
+  /* La lente sale de la ruta (/calendario/, /resultados/, /deportistas/); ?entrada= queda para enlaces viejos de /explorador/. */
+  const RUTA = { eventos: "calendario", resultados: "resultados", deportistas: "deportistas" };
+  const ENTRADA_RAW = Object.keys(RUTA).find((k) => new RegExp("/" + RUTA[k] + "(/index\\.html|/)?$").test(location.pathname)) || new URLSearchParams(location.search).get("entrada");
+  const BASE = location.pathname.replace(/[^/]*(\/index\.html|\/)?$/, "").replace(/\/$/, "").replace(/\/(calendario|resultados|deportistas|explorador)$/, "") + "/";
+  const urlOf = (lente) => BASE + RUTA[lente] + "/";
   let ENT = { e: "", f: "REG" };
   (() => {
     const qs = new URLSearchParams(location.search), qe = qs.get("e");
     /* «Fase final» no lleva evento: una sola vista con todos los deportes de la final. */
-    if (!qe && qs.get("f") === "NAC" && qs.get("entrada") !== "deportistas" && window.NWX_FINAL_PUBLICADA) { ENT = { e: "", f: "NAC" }; return; }
-    if (EVT_LABEL[qe]) { ENT = { e: qe, f: qs.get("f") === "NAC" && qs.get("entrada") !== "deportistas" ? "NAC" : "REG" }; if (qs.get("entrada") === "deportistas") return; try { sessionStorage.setItem("nwx-entrada", ENT.e + "|" + ENT.f); } catch (x) { /* sin storage */ } return; }
-    if (qs.get("entrada") === "deportistas") return; /* sin evento: se ofrece el selector, no se hereda uno recordado */
+    if (!qe && qs.get("f") === "NAC" && ENTRADA_RAW !== "deportistas" && window.NWX_FINAL_PUBLICADA) { ENT = { e: "", f: "NAC" }; return; }
+    if (EVT_LABEL[qe]) { ENT = { e: qe, f: qs.get("f") === "NAC" && ENTRADA_RAW !== "deportistas" ? "NAC" : "REG" }; if (ENTRADA_RAW === "deportistas") return; try { sessionStorage.setItem("nwx-entrada", ENT.e + "|" + ENT.f); } catch (x) { /* sin storage */ } return; }
+    if (ENTRADA_RAW === "deportistas") return; /* sin evento: se ofrece el selector, no se hereda uno recordado */
     let m = ""; try { m = sessionStorage.getItem("nwx-entrada") || ""; } catch (x) { /* sin storage */ }
     /* Mientras la final no esté publicada (interruptor de behaviors.js), volver sin «f» nunca deja en ella. */
     const q = m.split("|"); if (EVT_LABEL[q[0]]) ENT = { e: q[0], f: q[1] === "NAC" && window.NWX_FINAL_PUBLICADA ? "NAC" : "REG" };
-    else if (qs.get("entrada") !== "deportistas") ENT = { e: "individual", f: "REG" };
+    else if (ENTRADA_RAW !== "deportistas") ENT = { e: "individual", f: "REG" };
   })();
   const CHIPTL = { tipo: "Evento", deporte: "Deporte", prueba: "Prueba", regional: "Regional", depto: "Departamento", sexo: "Sexo", cat: "Categoría", inst: "Institución" };
 
   /* Dos lentes sobre la misma máquina de niveles; «dia» y «calendario-resultados» son enlaces viejos que se conservan. */
-  const ENTRADA = { deportistas: "deportistas", eventos: "eventos", dia: "eventos", resultados: "resultados", "calendario-resultados": "resultados" }[new URLSearchParams(location.search).get("entrada")] || "resultados";
+  const ENTRADA = { deportistas: "deportistas", eventos: "eventos", dia: "eventos", resultados: "resultados", "calendario-resultados": "resultados" }[ENTRADA_RAW] || "resultados";
   const LENS = ENTRADA !== "deportistas", RES = ENTRADA === "resultados";
   const VISTA = { deportistas: "Deportistas", eventos: "Eventos y fases" }[ENTRADA] || "Resultados";
   const nameOf = (id) => (ATH[id] || INS[id] || { nombre: id }).nombre;
@@ -500,8 +505,8 @@
     const kick = [rs.length === 1 ? rs[0].nombre : "", gs.length === 1 ? "Grupo " + gs[0] : ""].filter(Boolean).join(" · ");
     /* Misma prueba en la lente Resultados; solo si hay algo jugado, para no llevar a una pantalla vacía. */
     const played = es.some((e) => encSt(e)[0] !== "prog") || p.estado === "finalizada" || p.estado === "en-competencia";
-    const qs = new URLSearchParams(location.search); qs.set("entrada", "resultados");
-    const ver = !RES && played ? '<a class="nwx-bver" href="' + location.pathname + "?" + qs.toString() + hrefOf({ c: S.c, d: S.d, p: S.p }) + '" aria-label="Ver esta prueba en resultados">Ver en resultados <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a>' : "";
+    const qs = new URLSearchParams(location.search); qs.delete("entrada");
+    const ver = !RES && played ? '<a class="nwx-bver" href="' + urlOf("resultados") + (qs.toString() ? "?" + qs.toString() : "") + hrefOf({ c: S.c, d: S.d, p: S.p }) + '" aria-label="Ver esta prueba en resultados">Ver en resultados <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a>' : "";
     const one = r && r.tipo === "posiciones" && r.tablas.length === 1, tb = tablesOf(p);
     const pod = p.estado === "finalizada" ? indPod(p) : null;
     const res = tb || pod ? fxCard((pod ? "Podio y clasificación" : one ? "Resultado de este grupo" : "Resultado de la prueba") + (kick ? ' <small class="nwx-k2">' + esc(kick) + "</small>" : ""), (indRows(p) ? podBlock(p) : (pod ? podiumHtml(pod) : "") + tb), "nwx-flat", ver) : "";
@@ -551,7 +556,7 @@
   const chipsHtml = () => { const n = S.c.inst && INS[S.c.inst] ? INS[S.c.inst].nombre : ""; if (!n) return "";
     return '<div class="nwx-fchips" role="group" aria-label="Filtros activos"><span class="nwx-fchip"><b>' + esc(n) + '</b><button type="button" class="nwx-fchx" data-a="rm" data-t="inst" aria-label="Quitar el filtro de institución: ' + esc(n) + '"><span aria-hidden="true">×</span> Quitar</button></span></div>'; };
   const pagerHtml = (pg, pages) => pages < 2 ? "" : '<nav class="nwx-pager" aria-label="Paginación de deportistas"><button type="button" class="nwx-back-btn" data-a="pg" data-g="' + (pg - 1) + '"' + (pg <= 1 ? " disabled" : "") + '>Anterior</button><span class="nwx-pgx" aria-current="page">Página ' + pg + " de " + pages + '</span><button type="button" class="nwx-back-btn" data-a="pg" data-g="' + (pg + 1) + '"' + (pg >= pages ? " disabled" : "") + ">Siguiente</button></nav>";
-  const evSelHtml = () => ENT.e ? "" : '<nav class="nwx-evsel" aria-label="Elegir evento">' + Object.keys(EVT_LABEL).map((k) => '<a class="nwx-evcard" href="?entrada=deportistas&e=' + k + '"><small>Evento</small><b>' + EVT_LABEL[k] + "</b></a>").join("") + "</nav>";
+  const evSelHtml = () => ENT.e ? "" : '<nav class="nwx-evsel" aria-label="Elegir evento">' + Object.keys(EVT_LABEL).map((k) => '<a class="nwx-evcard" href="' + urlOf("deportistas") + '?e=' + k + '"><small>Evento</small><b>' + EVT_LABEL[k] + "</b></a>").join("") + "</nav>";
   const viewDeportistas = () => {
     const rowsAll = inscriptions(), n = nAth(rowsAll), tot = nAth(inscriptions(ENT.e ? { tipo: ENT.e } : {})), act = Object.keys(S.c).some((k) => k !== "tipo");
     const pages = Math.max(1, Math.ceil(rowsAll.length / PAGE)), pg = Math.min(S.pg, pages);
@@ -914,8 +919,8 @@
       $v.setAttribute("aria-busy", "true"); $v.innerHTML = loaderHtml(); loadMsg = "";
       const L = $v.firstChild; if (L) L.style.minHeight = Math.max(320, Math.round(innerHeight - Math.max(0, $v.getBoundingClientRect().top) - 24)) + "px";
       requestAnimationFrame(() => { $p.style.opacity = "1"; });
-      const qs = new URLSearchParams(location.search); qs.set("entrada", "resultados");
-      const url = dest || location.pathname + "?" + qs.toString() + location.hash;
+      const qs = new URLSearchParams(location.search); qs.delete("entrada");
+      const url = dest || urlOf("resultados") + (qs.toString() ? "?" + qs.toString() : "") + location.hash;
       try { sessionStorage.setItem("nwx-fusion", "1"); } catch (x) { /* sin storage */ }
       loadT = setTimeout(() => location.replace(url), 2000);
     }, 300);
@@ -979,7 +984,7 @@
     else if (a === "fp") { const q = PBY[d.id]; if (!q) return; const t = DEPO[q.deporteId].tipo;
       /* Dentro de una lente la prueba se abre sin salir de ella, así el menú activo no cambia. */
       if (LENS && t === ENT.e && q.faseId === FASE.id) { S.c = { tipo: t, regional: q.regionalId, deporte: q.deporteId }; S.p = q.id; S.m = ""; S.ficha = ""; }
-      else { location.href = "?entrada=" + (ENTRADA === "deportistas" ? "resultados" : ENTRADA) + "&e=" + t + "&f=" + (faseOf(q).clave || "REG") + (DEMO ? "&demo=nac" : "") + hashOf({ c: { tipo: t, regional: q.regionalId, deporte: q.deporteId }, p: q.id }); return; } }
+      else { location.href = urlOf(ENTRADA === "deportistas" ? "resultados" : ENTRADA) + "?e=" + t + "&f=" + (faseOf(q).clave || "REG") + (DEMO ? "&demo=nac" : "") + hashOf({ c: { tipo: t, regional: q.regionalId, deporte: q.deporteId }, p: q.id }); return; } }
     else if (a === "back") { S.ficha = ""; S.hl = ""; }
     else if (a === "dsel") { selD = d.id; try { sessionStorage.setItem(SELD, selD); } catch (x) { /* sin storage */ }
       const r = dRows().filter((x) => x.p.id === selD)[0], pn = document.getElementById("nwx-dmp"); if (!r || !pn) return;
