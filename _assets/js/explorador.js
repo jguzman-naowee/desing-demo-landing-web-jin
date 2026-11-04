@@ -11,6 +11,15 @@
   const DEMO = (() => { let on = true; try { on = on || localStorage.getItem("nwx-demo-final") === "1"; } catch (e) { /* sin storage */ } return on; })();
   if (DEMO && !window.EXPLORADOR_DEMO) { const s = document.createElement("script"); s.src = ((me && me.src) || "").replace(/explorador\.js(\?.*)?$/, "explorador-datos-demo.js"); s.onload = () => boot(me); document.head.appendChild(s); return; }
   if (DEMO && !D.demoFusion) { D.demoFusion = true; ["pruebas", "encuentros", "participaciones", "deportistas", "instituciones", "sedes"].forEach((k) => { D[k] = D[k].concat(window.EXPLORADOR_DEMO[k] || []); }); }
+  /* Juego limpio (DIG-CT-09): columna JL en las tablas de posiciones de los deportes de conjunto.
+     Los puntos son DE EJEMPLO: la foto de los Regionales no los trae. Salen de la tabla de puntos de cada
+     deporte (reglamentos 2026), repartidos de forma determinista por partido jugado. */
+  const COL_TIP = { PJ: "Partidos jugados", G: "Partidos ganados", E: "Partidos empatados", P: "Partidos perdidos", GF: "Goles a favor", GC: "Goles en contra", PF: "Puntos a favor", PC: "Puntos en contra", SG: "Sets ganados", SP: "Sets perdidos", Dif: "Diferencia: a favor menos en contra", Pts: "Puntos de la tabla", JL: "Juego limpio: puntos por tarjetas y sanciones. Menos puntos es mejor y desempata" };
+  const colTh = (c) => COL_TIP[c] ? '<span class="nwx-tip' + (c === "JL" ? " nwx-tip--jl" : "") + '" tabindex="0" data-tip="' + esc(COL_TIP[c]) + '" aria-label="' + esc(COL_TIP[c]) + '">' + esc(c) + "</span>" : esc(c);
+  const JL_TABLA = { "Fútbol": [10, 10, 10, 15, 30], "Fútbol sala": [10, 10, 10, 15, 30], "Fútbol de Salón": [10, 10, 15, 30], "Baloncesto": [10, 20, 20, 30, 50], "Baloncesto 3x3": [20, 20, 30], "Voleibol": [10, 10, 30, 30, 80] };
+  const jlHash = (t) => { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  const jlPuntos = (disc, key, pj) => { const tb = JL_TABLA[disc]; let tot = 0; for (let k = 0; k < pj; k++) { const h = jlHash(key + "|" + k); if (h % 2 === 0) tot += tb[(h >>> 8) % tb.length]; } return tot; };
+  if (!D.jlHecho) { D.jlHecho = true; (D.pruebas || []).concat((window.EXPLORADOR_DEMO && window.EXPLORADOR_DEMO.pruebas) || []).forEach((p) => { const r = p.resultado; if (!r || r.tipo !== "posiciones" || !JL_TABLA[p.disciplina]) return; r.tablas.forEach((t) => { if (t.columnas.indexOf("JL") > -1) return; t.filas.forEach((f) => { f.v.unshift(String(jlPuntos(p.disciplina, p.id + f.refId, +f.v[0] || 0))); }); t.columnas.unshift("JL"); }); }); }
 
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const norm = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -261,9 +270,9 @@
       h += clasifTable(r.filas.filter((f) => !o.only || f.refId === o.only).sort((a, b) => (a.puesto || 99) - (b.puesto || 99)));
     } else if (r && r.tipo === "posiciones") {
       if (withPod && p.estado === "finalizada" && podOf(p)) h += podiumHtml(podOf(p));
-      h += r.tablas.map((t) => '<div class="nwx-tbox"><div class="nwx-gt">' + (t.grupo ? "Grupo " + esc(t.grupo) : "Posiciones") + '</div><table class="nwx-rtab"><thead><tr><th>#</th><th>Equipo</th>' +
-        t.columnas.map((c) => '<th class="c">' + esc(c) + "</th>").join("") + "</tr></thead><tbody>" +
-        t.filas.map((f) => "<tr" + hiTr(f.refId) + "><td>" + rank(f.puesto) + '</td><td><span class="nwx-who">' + flagHtml(f.refId) + esc(nameOf(f.refId)) + "</span>" + hiTx(f.refId) + "</td>" + f.v.map((v, i) => '<td class="c">' + (i === f.v.length - 1 ? "<b>" + esc(v) + "</b>" : esc(v)) + "</td>").join("") + "</tr>").join("") + "</tbody></table>" +
+      h += r.tablas.map((t) => '<div class="nwx-tbox nwx-tscroll"><div class="nwx-gt">' + (t.grupo ? "Grupo " + esc(t.grupo) : "Posiciones") + '</div><table class="nwx-rtab"><thead><tr><th>#</th><th>Equipo</th>' +
+        t.columnas.map((c) => '<th class="c">' + colTh(c) + "</th>").join("") + "</tr></thead><tbody>" +
+        t.filas.map((f) => "<tr" + hiTr(f.refId) + "><td>" + rank(f.puesto) + '</td><td><span class="nwx-who">' + flagHtml(f.refId) + esc(nameOf(f.refId)) + "</span>" + hiTx(f.refId) + "</td>" + f.v.map((v, i) => '<td class="c">' + (t.columnas[i] === "Pts" ? "<b>" + esc(v) + "</b>" : esc(v)) + "</td>").join("") + "</tr>").join("") + "</tbody></table>" +
         "</div>").join("");
     } else {
       h += p.estado === "finalizada" || p.estado === "en-competencia" ? empty(p.estado === "finalizada" ? "Aún no hay resultado publicado." : "En juego: el resultado aparece al terminar.") : "";
@@ -434,8 +443,8 @@
     const mid = has ? '<b class="nwx-mf' + cls(0) + '">' + n0 + '</b><span class="nwx-mg">–</span><b class="nwx-mf' + cls(1) + '">' + n1 + "</b>" : '<span class="nwx-mvs2">vs</span>';
     const mob = (x, i, n) => '<span class="nwx-mmq">' + depBadge(x.refId) + nm(x, i) + '</span><b class="nwx-mmb' + cls(i) + '">' + (n != null && has ? n : "–") + "</b>";
     const al = lab + ": " + nameOf(ps[0].refId) + (has ? " " + n0 : "") + ", " + nameOf(ps[1].refId) + (has ? " " + n1 : "") + ", " + st[1].toLowerCase();
-    return open + '"' + lnk(esc(al)) + '<b class="nwx-mn">' + esc(lab) + '</b><i class="nwx-mdv" aria-hidden="true"></i>'
-      + '<span class="nwx-mhome"><span class="nwx-ml">' + sd(ps[0], 0) + "</span>" + subH + '</span><span class="nwx-mbox"><span class="nwx-mscore">' + mid + "</span>" + tag + '</span><span class="nwx-maway">' + sd(ps[1], 1) + "</span>"
+    return open + '"' + lnk(esc(al)) + '<b class="nwx-mn">' + esc(lab) + subH + '</b><i class="nwx-mdv" aria-hidden="true"></i>'
+      + '<span class="nwx-mhome"><span class="nwx-ml">' + sd(ps[0], 0) + "</span>" + '</span><span class="nwx-mbox"><span class="nwx-mscore">' + mid + "</span>" + tag + '</span><span class="nwx-maway">' + sd(ps[1], 1) + "</span>"
       + btn + '<span class="nwx-mtop" aria-hidden="true"><b class="nwx-mn">' + esc(lab) + "</b>" + tag + '</span><span class="nwx-mm1" aria-hidden="true">' + mob(ps[0], 0, n0) + '</span><span class="nwx-mm2" aria-hidden="true">' + mob(ps[1], 1, n1) + "</span>" + close; };
   /* Cabecera del partido: mismo lenguaje que mrow en tamaño grande; la unidad rotula las cifras (el «3 vs 1» es ambiguo). */
   const matchHead = (e, p) => { const ps = e.participantes, st = encSt(e), unit = UNIT[(DEPO[p.deporteId] || {}).nombre] || "";
