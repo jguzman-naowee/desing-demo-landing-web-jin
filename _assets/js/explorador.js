@@ -665,7 +665,7 @@
     const sp = { title: "Qué deporte", total: spTot, n: c.prueba || (single && c.deporte) ? spTot : c.deporte ? 1 : 0, levels: [{ t: "deporte", label: "Deporte", groups: deporteGroups }] };
     if (c.deporte && !single) sp.levels.push({ t: "prueba", label: "Prueba", opts: disciplinas(c.deporte).map((d) => ["prueba", d, d]) });
     const cats = LENS ? attrOpts(c).cats : [];
-    const lvC = cats.length ? [{ t: "cat", label: "Edad", seg: true, opts: cats.map((k) => ["cat", k, k]) }] : [];
+    const lvC = cats.length ? [{ t: "cat", label: "Edad", opts: cats.map((k) => ["cat", k, k]) }] : [];
     const sx = { title: LENS ? "Categoría" : "Sexo", total: lvC.length + 1, n: (c.sexo ? 1 : 0) + (c.cat ? 1 : 0),
       levels: [{ t: "sexo", label: "Sexo", seg: true, opts: [["sexo", "H", "Hombre"], ["sexo", "M", "Mujer"], ["sexo", "MX", "Mixto"]] }].concat(lvC) };
     if (LENS) {
@@ -685,15 +685,18 @@
   const fixedAttr = (p) => { const seg = (label, opts, on) => '<div class="nwx-seg is-fixed" role="group" aria-label="' + label + ' (la define la prueba)">' + opts.map((o) => '<button type="button" class="nwx-segb' + (o === on ? " on" : "") + '" aria-pressed="' + (o === on) + '" disabled>' + esc(o) + "</button>").join("") + "</div>";
     /* Sin sexo definido no se apagan los botones: un único botón encendido lo dice. */
     const sx = p.sexo ? seg("Sexo", ["Todos los sexos", "Hombre", "Mujer", "Mixto"], SEXO_LABEL[p.sexo]) : seg("Sexo", ["Sin sexo definido"], "Sin sexo definido");
-    const ct = p.categoria ? seg("Edad", ["Todas las edades"].concat(CATSALL), p.categoria) : ""; /* sin categoría no se inventa un rótulo */
+    const ct = p.categoria ? fixedSel("Edad", p.categoria) : ""; /* sin categoría no se inventa un rótulo */
     return sx + ct + '<p class="nwx-fixnote">' + LOCK + (p.sexo ? "La define la prueba" : "Prueba sin sexo definido") + "</p>"; };
   const CATSALL = [...new Set(PRUEBAS.map((q) => q.categoria).filter(Boolean))].sort((a, b) => (CORDER.indexOf(a) + 1 || 99) - (CORDER.indexOf(b) + 1 || 99));
+  /* Selector bloqueado con un único valor: no se puede cambiar. */
+  const fixedSel = (label, v) => '<div class="nwx-selw"><select class="nwx-sel" disabled aria-label="' + esc(label + " (no se puede cambiar)") + '"><option>' + esc(v) + "</option></select></div>";
   const fixedVal = (label, v, note) => '<div class="nwx-seg is-fixed" role="group" aria-label="' + esc(note ? label + " (" + note.toLowerCase() + ")" : label) + '"><button type="button" class="nwx-segb on" aria-pressed="true" disabled>' + esc(v) + '</button></div>' + (note ? '<p class="nwx-fixnote">' + LOCK + esc(note) + "</p>" : "");
   const segHtml = (lv) => { const cur = S.c[lv.t], on = (x) => (x[1] ? cur === x[1] : !cur);
     return (lv.cap ? '<span class="nwx-cap">' + esc(lv.cap) + "</span>" : "") + '<div class="nwx-seg" role="group" aria-label="' + esc(lv.label) + '">' + [["", "", lv.t === "cat" ? "Todas las edades" : lv.t === "sexo" ? "Todos los sexos" : "Todos"]].concat(lv.opts).map((x) => '<button type="button" class="nwx-segb' + (on(x) ? " on" : "") + '" aria-pressed="' + on(x) + '" data-a="' + (!x[1] || cur === x[1] ? "rm" : "pick") + '" data-t="' + (x[0] || lv.t) + '" data-v="' + esc(x[1]) + '">' + esc(x[2]) + "</button>").join("") + "</div>"; };
   const fixedReg = (lv) => lv.t === "regional" && ENTRADA === "eventos"; /* viniendo de Eventos y fases la regional solo se cambia */
   const selHtml = (lv) => {
     if (lv.seg) return segHtml(lv);
+    if (lv.t === "cat" && lv.opts.length === 1) return fixedSel(lv.label, lv.opts[0][2]);
     const cur = S.c[lv.t], opt = (x) => '<option value="' + x[0] + ":" + esc(x[1]) + '"' + (cur === x[1] ? " selected" : "") + ">" + esc(x[2]) + "</option>";
     const body = (lv.groups ? lv.groups.map((g) => '<optgroup label="' + esc(g[0]) + '">' + g[1].map(opt).join("") + "</optgroup>").join("") : lv.opts.map(opt).join(""));
     return '<div class="nwx-selw' + (cur && !fixedReg(lv) ? " has-x" : "") + '"><select class="nwx-sel" data-sel aria-label="' + esc(lv.label) + '">' + (cur ? (fixedReg(lv) ? "" : '<option value="rm:' + lv.t + '">Todos</option>') : '<option value="" selected disabled>Elegir ' + esc(lv.label) + "…</option>") + body + "</select>" +

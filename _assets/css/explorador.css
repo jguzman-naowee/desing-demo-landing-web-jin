@@ -1126,3 +1126,6 @@ button.nwx-dc:hover{background:rgba(255,255,255,.2)}
 .nwx-mrow>.nwx-mn{flex-direction:column;align-items:flex-start;text-align:left}
 .nwx-mrow>.nwx-mn .nwx-msub{display:block;font-weight:400;font-size:12px;line-height:1.35;margin-top:.25rem;color:#646464;text-align:left}
 .nwx-mrow>.nwx-mn .nwx-msub{white-space:normal;overflow:visible;text-overflow:clip}
+
+/* Selector bloqueado (único valor): se ve apagado y no invita al clic */
+.nwx-selw .nwx-sel:disabled{background-color:#f4f4f7;cursor:not-allowed;color:inherit;opacity:1}
