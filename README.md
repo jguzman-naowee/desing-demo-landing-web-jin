@@ -2,7 +2,7 @@
 
 Demo navegable del nuevo flujo **Eventos y fases · Resultados · Deportistas** de la landing de los Juegos Intercolegiados (Naowee · Ministerio del Deporte). Es un prototipo de diseño estático: no consulta ningún servicio.
 
-**Ver la demo:** https://naowee-tech.github.io/desing-demo-landing-web-jin/
+**Ver la demo:** https://jguzman-naowee.github.io/desing-demo-landing-web-jin/
 
 ## Cómo usarla
 
