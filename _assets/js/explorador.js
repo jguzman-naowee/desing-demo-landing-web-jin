@@ -507,6 +507,44 @@
       + rows.map((r) => '<button type="button" class="nwx-dmi' + (r.p.id === selD ? " is-on" : "") + '" data-a="dsel" data-id="' + esc(r.p.id) + '" aria-pressed="' + (r.p.id === selD) + '"><span class="nwx-rl"><span class="block truncate font-bold text-sm" title="' + esc(r.name) + '">' + esc(r.name) + "</span>" + r.pill + '</span><span class="block truncate text-xs nwx-dms" title="' + esc(r.sub) + '">' + esc(r.sub) + "</span></button>").join("")
       + '</div><div class="nwx-dmp" id="nwx-dmp" aria-live="polite">' + dPanel(cur) + "</div></div>" + nota + "</div>";
   };
+  /* Llaves de eliminación: una columna por ronda; el tercer puesto va aparte. Las líneas se dibujan en SVG según la posición real de las tarjetas. */
+  const BR_RE = /final|cuartos|octavos|tercer/i, BR_KEY = "nwx-llaves-dir";
+  const brEnc = (p) => (ENC[p.id] || []).slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
+  const isBracket = (p) => { const rs = p.rondas || [], es = brEnc(p); return rs.length > 1 && es.length > 1 && rs.every((r) => BR_RE.test(r.nombre)) && rs.some((r) => /final/i.test(r.nombre)) && es.every((e) => e.participantes.length === 2); };
+  let brDir = (() => { try { const v = localStorage.getItem(BR_KEY); if (v === "h" || v === "v") return v; } catch (e) { /* sin storage */ } return innerWidth < 700 ? "v" : "h"; })();
+  const brCard = (e, nx, i) => {
+    const st = encSt(e), sede = SEDE[e.sedeId], ps = e.participantes, sc = (x) => (x && st[0] !== "prog" && x.marcador != null ? +x.marcador : null);
+    const w = sc(ps[0]) != null && sc(ps[1]) != null ? (sc(ps[0]) > sc(ps[1]) ? 0 : sc(ps[1]) > sc(ps[0]) ? 1 : -1) : -1;
+    const row = (x, k) => x ? '<span class="nwx-brp' + (w === k ? " is-w" : w >= 0 ? " is-l" : "") + '"><span class="nwx-bra">' + esc(initials(nameOf(x.refId))) + '</span><span class="nwx-brn"><b>' + esc(nameOf(x.refId)) + "</b><small>" + esc(depName(x.refId)) + "</small></span>" + (sc(x) != null ? '<span class="nwx-brs">' + sc(x) + "</span>" : "") + "</span>"
+      : '<span class="nwx-brp is-tbd"><span class="nwx-bra">?</span><span class="nwx-brn"><b>Por definir</b></span></span>';
+    const meta = [e.fecha ? fmtDia(e.fecha, "wd") : "", sede ? sede.nombre + " · " + sede.municipio : ""].filter(Boolean).join(" · ");
+    const inner = row(ps[0], 0) + row(ps[1], 1) + '<span class="nwx-brf"><span class="nwx-mst ' + st[0] + '">' + st[1] + "</span>" + (meta ? "<small>" + esc(meta) + "</small>" : "") + "</span>";
+    const at = ' class="nwx-brc" data-id="' + esc(e.id) + '" data-nx="' + esc(nx || "") + '" style="--i:' + i + '"';
+    return RES ? "<a" + at + ' href="' + hrefOf({ c: S.c, p: S.p || e.pruebaId, d: S.d, m: e.id }) + '" aria-label="' + esc(elab(e) + ": " + ps.map((x) => nameOf(x.refId)).join(" contra ")) + '">' + inner + "</a>" : "<div" + at + ' tabindex="0">' + inner + "</div>"; };
+  const brSwitch = () => { const dir = (d, t) => '<button type="button" class="nwx-segb' + (brDir === d ? " on" : "") + '" aria-pressed="' + (brDir === d) + '" data-a="brdir" data-v="' + d + '">' + t + "</button>";
+    return '<div class="nwx-seg nwx-brdir" role="group" aria-label="Orientación de las llaves">' + dir("h", "Horizontal") + dir("v", "Vertical") + "</div>"; };
+  const bracketHtml = (p) => {
+    const rs = (p.rondas || []).slice().sort((a, b) => (a.orden || 0) - (b.orden || 0)), es = brEnc(p), main = rs.filter((r) => !/tercer/i.test(r.nombre)), third = rs.filter((r) => /tercer/i.test(r.nombre))[0];
+    const of = (r) => es.filter((e) => e.rondaId === r.id);
+    const col = (r, ri) => { const ms = of(r), nxt = ri >= 0 && main[ri + 1] ? of(main[ri + 1]) : [];
+      return '<section class="nwx-brcol" aria-label="' + esc(r.nombre) + '"><span class="nwx-brh">' + esc(r.nombre.replace(/^Semifinales$/i, "Semifinal")) + '</span><div class="nwx-brm">' + ms.map((e, i) => brCard(e, nxt[Math.floor(i / 2)] && nxt[Math.floor(i / 2)].id, ri * 3 + i)).join("") + "</div></section>"; };
+    return '<div class="nwx-br" data-dir="' + brDir + '"><div class="nwx-brscroll"><div class="nwx-brtree"><svg class="nwx-brsvg" aria-hidden="true"></svg>' + main.map(col).join("") + "</div>"
+      + (third ? '<div class="nwx-brthird">' + col(third, -1) + "</div>" : "") + "</div></div>"; };
+  const brDraw = (box) => {
+    const tree = box.querySelector(".nwx-brtree"), svg = box.querySelector(".nwx-brsvg"); if (!tree || !svg) return;
+    const t = tree.getBoundingClientRect(), v = box.dataset.dir === "v", NS = "http://www.w3.org/2000/svg"; svg.innerHTML = ""; svg.setAttribute("width", tree.scrollWidth); svg.setAttribute("height", tree.scrollHeight);
+    tree.querySelectorAll(".nwx-brc[data-nx]").forEach((c) => { const nx = c.dataset.nx; if (!nx) return; const d = tree.querySelector('.nwx-brc[data-id="' + nx.replace(/"/g, "") + '"]'); if (!d) return;
+      const a = c.getBoundingClientRect(), b = d.getBoundingClientRect(), x1 = v ? a.left - t.left + a.width / 2 : a.right - t.left, y1 = v ? a.bottom - t.top : a.top - t.top + a.height / 2, x2 = v ? b.left - t.left + b.width / 2 : b.left - t.left, y2 = v ? d.closest(".nwx-brcol").getBoundingClientRect().top - t.top : b.top - t.top + b.height / 2;
+      const m = v ? (y1 + y2) / 2 : (x1 + x2) / 2, path = document.createElementNS(NS, "path"); path.setAttribute("d", v ? "M" + x1 + " " + y1 + "V" + m + "H" + x2 + "V" + y2 : "M" + x1 + " " + y1 + "H" + m + "V" + y2 + "H" + x2);
+      path.setAttribute("class", "nwx-brl"); path.dataset.a = c.dataset.id; path.dataset.b = nx; svg.appendChild(path); const l = Math.ceil(path.getTotalLength()); path.style.setProperty("--l", l); path.style.setProperty("--d", (+c.style.getPropertyValue("--i") * 0.12 + 0.25) + "s"); }); };
+  const brAll = () => document.querySelectorAll(".nwx-br").forEach(brDraw);
+  const brFocus = (id) => { document.querySelectorAll(".nwx-br").forEach((box) => { box.classList.toggle("has-hl", !!id); box.querySelectorAll(".is-hl").forEach((n) => n.classList.remove("is-hl")); if (!id) return;
+    const set = new Set([id]), cards = [...box.querySelectorAll(".nwx-brc")]; let c = cards.filter((x) => x.dataset.id === id)[0]; while (c && c.dataset.nx) { set.add(c.dataset.nx); c = cards.filter((x) => x.dataset.id === c.dataset.nx)[0]; }
+    for (let go = true; go;) { go = false; cards.forEach((x) => { if (set.has(x.dataset.nx) && !set.has(x.dataset.id)) { set.add(x.dataset.id); go = true; } }); }
+    cards.forEach((x) => x.classList.toggle("is-hl", set.has(x.dataset.id))); box.querySelectorAll(".nwx-brl").forEach((l) => l.classList.toggle("is-hl", set.has(l.dataset.a) && set.has(l.dataset.b))); }); };
+  const setBrDir = (d) => { brDir = d; try { localStorage.setItem(BR_KEY, d); } catch (e) { /* sin storage */ }
+    document.querySelectorAll(".nwx-br").forEach((box) => { box.dataset.dir = d; box.classList.remove("is-anim"); void box.offsetWidth; box.classList.add("is-anim"); box.querySelectorAll('[data-a="brdir"]').forEach((b) => { b.classList.toggle("on", b.dataset.v === d); b.setAttribute("aria-pressed", String(b.dataset.v === d)); }); });
+    requestAnimationFrame(brAll); };
   const DIV = '<hr class="nwx-div" role="separator">';
   const viewE = () => {
     const p = PBY[S.p], all = encsOf(p), es = (S.d ? all.filter((e) => e.fecha === S.d) : all).filter(encIn), team = all.some(isTeam), r = p.resultado;
@@ -530,9 +568,10 @@
     const pend = team || fin ? [] : es.filter((e) => e.estado !== "finalizado" && e.participantes.length), hechas = team || !fin || all.length < 2 ? [] : es.filter((e) => e.estado === "finalizado" && e.participantes.length);
     const salida = pend.length ? fxCard('Lista de salida <small class="nwx-k2">' + esc(nEnc(pend)) + "</small>", pend.map((e) => serie(e, true)).join(""), "nwx-flat nwx-salida") : "";
     const series = hechas.length ? fxCard('Series y marcas <small class="nwx-k2">' + esc(nEnc(hechas)) + "</small>", hechas.map((e) => serie(e, false)).join(""), "nwx-flat nwx-series") : "";
+    const brk = isBracket(p) ? fxCard('Llaves <small class="nwx-k2">' + esc(nEnc(brEnc(p))) + "</small>", bracketHtml(p), "nwx-flat nwx-brk", '<div class="nwx-brtop">' + brSwitch() + ver + "</div>") : "";
     if (RES) { selD = p.id; try { sessionStorage.setItem(SELD, selD); } catch (x) { /* sin storage */ } } /* el back vuelve con esta prueba elegida */
     const back = '<a class="nwx-bmore nwx-bback" href="' + hrefOf({ c: S.c, d: S.d }) + '">' + MCHEV.replace("<svg", '<svg style="transform:scaleX(-1)"') + " Volver a las pruebas</a>";
-    return '<div class="nwx-view nwx-fx nwx-lens"><div class="nwx-brow">' + back + dayStrip() + "</div>" + (fin ? [list, res, series] : [salida, list, res]).filter(Boolean).join(DIV) + "</div>";
+    return '<div class="nwx-view nwx-fx nwx-lens"><div class="nwx-brow">' + back + dayStrip() + "</div>" + (brk ? [brk, res] : fin ? [list, res, series] : [salida, list, res]).filter(Boolean).join(DIV) + "</div>";
   };
   const viewF = () => {
     const e = ENCBY[S.m], p = PBY[e.pruebaId], team = isTeam(e), g = e.grupo;
@@ -911,7 +950,7 @@
     const nav = ENTRADA + "|" + (LENS ? level() : "") + "|" + [S.c.regional, S.c.deporte, S.p, S.m, S.ficha].join("|");
     if (prevNav !== null && nav !== prevNav) window.scrollTo({ top: 0, behavior: "instant" });
     prevNav = nav;
-    const done = () => { loadMsg = ""; $v.innerHTML = html; $v.removeAttribute("aria-busy"); $v.classList.remove("nwx-enter"); if (anim) { void $v.offsetWidth; $v.classList.add("nwx-enter"); } stickyBg();
+    const done = () => { loadMsg = ""; $v.innerHTML = html; $v.removeAttribute("aria-busy"); $v.classList.remove("nwx-enter"); if (anim) { void $v.offsetWidth; $v.classList.add("nwx-enter"); } stickyBg(); requestAnimationFrame(() => { brAll(); document.querySelectorAll(".nwx-br").forEach((b) => b.classList.add("is-anim")); });
       if (pgScroll) { pgScroll = false; const t = $v.getBoundingClientRect().top + scrollY - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--nwx-top")) || 0) - 150; window.scrollTo({ top: Math.max(0, t), behavior: "instant" }); } };
     if (!anim) return done();
     /* El loader ocupa el alto visible que queda bajo la franja y centra el grupo; nunca menos de 320 px. */
@@ -975,6 +1014,7 @@
     if (rv && !e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) { e.preventDefault(); toResultados(rv.getAttribute("href")); return; } /* mismo loader que al abrir un partido */
     const b = e.target.closest("[data-a]"); if (!b) return;
     const a = b.dataset.a, d = b.dataset;
+    if (a === "brdir") { setBrDir(d.v); return; }
     if (a === "pg") { S.pg = Math.max(1, +d.g || 1); pgScroll = true; nav(); return; }
     if (a === "pick") S.c = setC(S.c, d.t, d.v);
     else if (a === "rm") rmSel(d.t);
@@ -1011,6 +1051,11 @@
     } else return;
     S.pg = 1; nav();
   });
+  root.addEventListener("mouseover", (e) => { const c = e.target.closest && e.target.closest(".nwx-brc"); if (c) brFocus(c.dataset.id); });
+  root.addEventListener("mouseout", (e) => { if (e.target.closest && e.target.closest(".nwx-brc")) brFocus(""); });
+  root.addEventListener("focusin", (e) => { const c = e.target.closest && e.target.closest(".nwx-brc"); if (c) brFocus(c.dataset.id); });
+  root.addEventListener("focusout", (e) => { if (e.target.closest && e.target.closest(".nwx-brc")) brFocus(""); });
+  window.addEventListener("resize", () => { clearTimeout(window.__brT); window.__brT = setTimeout(brAll, 120); });
   root.addEventListener("animationend", (e) => { if (e.target.classList && e.target.classList.contains("nwx-shrink")) e.target.remove(); });
   root.addEventListener("change", (e) => {
     const s = e.target.closest("select[data-sel]"); if (!s || !s.value) return;
