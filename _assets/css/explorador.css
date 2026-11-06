@@ -744,7 +744,6 @@ html.nwx-cambio #nwx-view .nwx-load{min-height:calc(100vh - 220px)!important}
 .nwx-npub .nwx-empty{padding:2rem 1.5rem;gap:.5rem;border-style:solid;background:#fff}
 .nwx-npub .nwx-empty span{color:var(--color-JIN6-text-secondary,#646587)}
 .nwx-npk{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:var(--color-JIN6-foundations-violeta,#602a8c);border-radius:999px;padding:.125rem .75rem}
-.nwx-demo{margin:0 0 .75rem;padding:.5rem 1rem;border-radius:.5rem;background:#fff4d6;border:1px dashed #c98a00;color:#6b4a00;font-weight:700;font-size:.875rem;text-align:center}
 /* En móvil la tarjeta es contenedor de scroll y el encabezado sticky se desplaza dentro de ella (también en la regional). */
 @media (max-width:900px){.nwx-nacg .nwx-rgrid2 .nwx-gh{position:static}}
 
@@ -1129,3 +1128,10 @@ button.nwx-dc:hover{background:rgba(255,255,255,.2)}
 
 /* Selector bloqueado (único valor): se ve apagado y no invita al clic */
 .nwx-selw .nwx-sel:disabled{background-color:#f4f4f7;cursor:not-allowed;color:inherit;opacity:1}
+
+/* Tabla de deportistas a ras de la tarjeta, con cebra y resalte de la celda bajo el cursor (DC-005) */
+.nwx-card--flush{padding:0;overflow:hidden}
+.nwx-card--flush .nwx-trow:nth-child(odd){background:#f7f7fb}
+.nwx-card--flush .nwx-trow>*{border-radius:.5rem;padding:.25rem .5rem;margin:-.25rem -.5rem}
+.nwx-card--flush .nwx-trow>*:hover{background:#ece6f5}
+.nwx-card--flush .nwx-pager{padding:1rem 1.125rem}
