@@ -10,7 +10,7 @@
   /* Demo: la final de ejemplo (datos ficticios) va siempre encendida. */
   const DEMO = (() => { let on = true; try { on = on || localStorage.getItem("nwx-demo-final") === "1"; } catch (e) { /* sin storage */ } return on; })();
   if (DEMO && !window.EXPLORADOR_DEMO) { const s = document.createElement("script"); s.src = ((me && me.src) || "").replace(/explorador\.js(\?.*)?$/, "explorador-datos-demo.js"); s.onload = () => boot(me); document.head.appendChild(s); return; }
-  if (DEMO && !D.demoFusion) { D.demoFusion = true; ["pruebas", "encuentros", "participaciones", "deportistas", "instituciones", "sedes"].forEach((k) => { D[k] = D[k].concat(window.EXPLORADOR_DEMO[k] || []); }); }
+  if (DEMO && !D.demoFusion) { D.demoFusion = true; ["deportes", "pruebas", "encuentros", "participaciones", "deportistas", "instituciones", "sedes"].forEach((k) => { D[k] = D[k].concat(window.EXPLORADOR_DEMO[k] || []); }); }
   /* Juego limpio (DIG-CT-09): columna JL en las tablas de posiciones de los deportes de conjunto.
      Los puntos son DE EJEMPLO: la foto de los Regionales no los trae. Salen de la tabla de puntos de cada
      deporte (reglamentos 2026), repartidos de forma determinista por partido jugado. */
@@ -511,7 +511,7 @@
   /* Llaves de eliminación: una columna por ronda; el tercer puesto va aparte. Las líneas se dibujan en SVG según la posición real de las tarjetas. */
   const BR_RE = /final|cuartos|octavos|tercer/i, BR_KEY = "nwx-llaves-dir";
   const brEnc = (p) => (ENC[p.id] || []).slice().sort((a, b) => (a.numero || 0) - (b.numero || 0));
-  const isBracket = (p) => { const rs = p.rondas || [], es = brEnc(p); return rs.length > 1 && es.length > 1 && rs.every((r) => BR_RE.test(r.nombre)) && rs.some((r) => /final/i.test(r.nombre)) && es.every((e) => e.participantes.length === 2); };
+  const isBracket = (p) => { const rs = p.rondas || [], es = brEnc(p); return rs.length > 1 && es.length > 1 && rs.every((r) => BR_RE.test(r.nombre)) && rs.some((r) => /final/i.test(r.nombre)) && es.every((e) => e.participantes.length === 2 || !e.participantes.length); };
   let brDir = (() => { try { const v = localStorage.getItem(BR_KEY); if (v === "h" || v === "v") return v; } catch (e) { /* sin storage */ } return innerWidth < 700 ? "v" : "h"; })();
   const brCard = (e, nx, i) => {
     const st = encSt(e), sede = SEDE[e.sedeId], ps = e.participantes, sc = (x) => (x && st[0] !== "prog" && x.marcador != null ? +x.marcador : null);
@@ -569,7 +569,7 @@
     const pend = team || fin ? [] : es.filter((e) => e.estado !== "finalizado" && e.participantes.length), hechas = team || !fin || all.length < 2 ? [] : es.filter((e) => e.estado === "finalizado" && e.participantes.length);
     const salida = pend.length ? fxCard('Lista de salida <small class="nwx-k2">' + esc(nEnc(pend)) + "</small>", pend.map((e) => serie(e, true)).join(""), "nwx-flat nwx-salida") : "";
     const series = hechas.length ? fxCard('Series y marcas <small class="nwx-k2">' + esc(nEnc(hechas)) + "</small>", hechas.map((e) => serie(e, false)).join(""), "nwx-flat nwx-series") : "";
-    const brk = isBracket(p) ? fxCard('Llaves <small class="nwx-k2">' + esc(nEnc(brEnc(p))) + "</small>", bracketHtml(p), "nwx-flat nwx-brk", '<div class="nwx-brtop">' + brSwitch() + ver + "</div>") : "";
+    const brk = isBracket(p) ? fxCard('Llaves <small class="nwx-k2">' + esc(brEnc(p).length + (brEnc(p).some(isTeam) ? " partidos" : " enfrentamientos")) + "</small>", bracketHtml(p), "nwx-flat nwx-brk", '<div class="nwx-brtop">' + brSwitch() + ver + "</div>") : "";
     if (RES) { selD = p.id; try { sessionStorage.setItem(SELD, selD); } catch (x) { /* sin storage */ } } /* el back vuelve con esta prueba elegida */
     const back = '<a class="nwx-bmore nwx-bback" href="' + hrefOf({ c: S.c, d: S.d }) + '">' + MCHEV.replace("<svg", '<svg style="transform:scaleX(-1)"') + " Volver a las pruebas</a>";
     return '<div class="nwx-view nwx-fx nwx-lens"><div class="nwx-brow">' + back + dayStrip() + "</div>" + (brk ? [brk, res] : fin ? [list, res, series] : [salida, list, res]).filter(Boolean).join(DIV) + "</div>";
