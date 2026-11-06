@@ -1135,3 +1135,42 @@ button.nwx-dc:hover{background:rgba(255,255,255,.2)}
 .nwx-card--flush .nwx-trow>*{border-radius:.5rem;padding:.25rem .5rem;margin:-.25rem -.5rem}
 .nwx-card--flush .nwx-trow>*:hover{background:#ece6f5}
 .nwx-card--flush .nwx-pager{padding:1rem 1.125rem}
+
+/* Llaves de eliminación (horizontal por defecto; vertical de arriba hacia abajo con data-dir="v") */
+.nwx-brbar{display:flex;justify-content:flex-end;margin:0 0 .75rem}.nwx-brbar .nwx-seg{height:2.25rem}
+.nwx-brscroll{overflow:auto;padding:.25rem .25rem 1rem}
+.nwx-brtree{position:relative;display:flex;gap:4rem;align-items:stretch;min-width:max-content}
+.nwx-brsvg{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.nwx-brl{fill:none;stroke:#c9bfe0;stroke-width:2;stroke-linejoin:round;stroke-dasharray:var(--l);stroke-dashoffset:0;transition:stroke .2s}
+.nwx-br.is-anim .nwx-brl{animation:nwx-brdraw .8s ease both;animation-delay:var(--d,.3s)}
+.nwx-brl.is-hl{stroke:var(--color-JIN6-foundations-violeta,#602a8c);stroke-width:3}
+@keyframes nwx-brdraw{from{stroke-dashoffset:var(--l)}to{stroke-dashoffset:0}}
+.nwx-brcol{display:flex;flex-direction:column;gap:.75rem;min-width:17rem;position:relative;z-index:1}
+.nwx-brh{align-self:flex-start;font-size:.6875rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:.375rem 1rem;border-radius:999px;background:#f1eef8;color:#602a8c}
+.nwx-brm{display:flex;flex-direction:column;justify-content:space-around;gap:1.25rem;flex:1}
+.nwx-brc{display:flex;flex-direction:column;background:#fff;border:1px solid var(--color-divider-soft,#d8dee9);border-radius:.875rem;overflow:hidden;text-decoration:none;color:inherit;transition:box-shadow .2s,opacity .2s,border-color .2s}
+.nwx-br.is-anim .nwx-brc{animation:nwx-brin .5s ease both;animation-delay:calc(var(--i,0)*.12s)}
+@keyframes nwx-brin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.nwx-brc:hover,.nwx-brc:focus-visible{box-shadow:0 6px 18px -8px rgba(96,42,140,.45);outline:0}
+.nwx-brc.is-hl{border-color:var(--color-JIN6-foundations-violeta,#602a8c)}
+.nwx-br.has-hl .nwx-brc:not(.is-hl){opacity:.45}
+.nwx-brp{display:flex;align-items:center;gap:.625rem;padding:.625rem .75rem}.nwx-brp+.nwx-brp{border-top:1px solid var(--color-divider-soft,#d8dee9)}
+.nwx-bra{flex:none;display:inline-grid;place-items:center;width:2rem;height:2rem;border-radius:50%;background:#f1eef8;color:#602a8c;font-size:.75rem;font-weight:700}
+.nwx-brn{display:flex;flex-direction:column;min-width:0;flex:1}.nwx-brn b{font-size:.875rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nwx-brn small{font-size:.75rem;color:#646587;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nwx-brs{font-weight:700;font-size:1rem}.nwx-brp.is-w .nwx-brn b,.nwx-brp.is-w .nwx-brs{color:#1f7a3d}.nwx-brp.is-l{color:#6f6a85}.nwx-brp.is-tbd{color:#8a87a0}.nwx-brp.is-tbd .nwx-bra{background:#f4f4f7}
+.nwx-brf{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem .5rem;padding:.5rem .75rem;background:#f7f7fb;border-top:1px solid var(--color-divider-soft,#d8dee9)}.nwx-brf small{font-size:.75rem;color:#646587}
+.nwx-brthird{margin-top:1.5rem}
+.nwx-br[data-dir=v] .nwx-brtree{flex-direction:column;gap:3rem;align-items:center}
+.nwx-br[data-dir=v] .nwx-brcol{min-width:0;width:100%;align-items:center}.nwx-br[data-dir=v] .nwx-brh{align-self:center}
+.nwx-br[data-dir=v] .nwx-brm{flex-direction:row;justify-content:space-around;width:100%;flex:none;gap:1.5rem}.nwx-br[data-dir=v] .nwx-brc{width:17rem;max-width:100%}
+.nwx-br[data-dir=v] .nwx-brthird{display:flex;justify-content:center}
+@media (prefers-reduced-motion:reduce){.nwx-br.is-anim .nwx-brl,.nwx-br.is-anim .nwx-brc{animation:none}}
+.nwx-brthird .nwx-brcol{width:17rem;min-width:0}
+/* Llaves centradas: el árbol, las etiquetas de ronda y el tercer puesto */
+.nwx-brtree{width:max-content;margin:0 auto}
+.nwx-brh{align-self:center}
+.nwx-brthird{display:flex;justify-content:center}
+/* Switch de orientación a la izquierda de «Ver en resultados», en la esquina de la tarjeta */
+.nwx-brtop{position:absolute;top:0;right:0;display:flex;align-items:center;gap:.75rem}.nwx-brtop .nwx-bver{margin:0}.nwx-brdir{height:2.75rem;box-sizing:border-box}
+.nwx-brbar{display:none}
+@media (max-width:640px){.nwx-brtop{position:static;flex-wrap:wrap;justify-content:flex-end;margin:.5rem 0}}
