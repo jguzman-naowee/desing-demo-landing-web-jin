@@ -28,10 +28,10 @@
   const DEPO = by(D.deportes), REG = by(D.regionales), DPT = by(D.departamentos), ATH = by(D.deportistas), INS = by(D.instituciones);
   const REGIONALES = D.regionales.filter((r) => r.faseId === "regionales");
   const GRUPO_TIPO = { "Atletismo": "individual", "Deportes de conjunto": "conjunto" };
-  const TIPO_LABEL = { individual: "Individual", conjunto: "De conjunto" };
+  const TIPO_LABEL = { individual: "Individual", conjunto: "De conjunto", paradeporte: "Paradeporte" };
   const SEXO_LABEL = { H: "Hombre", M: "Mujer", MX: "Mixto" };
   const ORDER = ["tipo", "deporte", "prueba", "regional", "depto", "sexo", "cat", "inst"];
-  const EVT_LABEL = { individual: "Deportes individuales", conjunto: "Deportes de conjunto" }, FASE_LABEL = { REG: "Regional", NAC: "Final nacional" };
+  const EVT_LABEL = { individual: "Deportes individuales", conjunto: "Deportes de conjunto", paradeporte: "Paradeportes" }, FASE_LABEL = { REG: "Regional", NAC: "Final nacional" };
   /* La lente sale de la ruta (/calendario/, /resultados/, /deportistas/); ?entrada= queda para enlaces viejos de /explorador/. */
   const RUTA = { eventos: "calendario", resultados: "resultados", deportistas: "deportistas" };
   const ENTRADA_RAW = Object.keys(RUTA).find((k) => new RegExp("/" + RUTA[k] + "(/index\\.html|/)?$").test(location.pathname)) || new URLSearchParams(location.search).get("entrada");
@@ -42,7 +42,7 @@
     const qs = new URLSearchParams(location.search), qe = qs.get("e");
     /* «Fase final» no lleva evento: una sola vista con todos los deportes de la final. */
     if (!qe && qs.get("f") === "NAC" && ENTRADA_RAW !== "deportistas" && window.NWX_FINAL_PUBLICADA) { ENT = { e: "", f: "NAC" }; return; }
-    if (EVT_LABEL[qe]) { ENT = { e: qe, f: qs.get("f") === "NAC" && ENTRADA_RAW !== "deportistas" ? "NAC" : "REG" }; if (ENTRADA_RAW === "deportistas") return; try { sessionStorage.setItem("nwx-entrada", ENT.e + "|" + ENT.f); } catch (x) { /* sin storage */ } return; }
+    if (EVT_LABEL[qe] && !(qe === "paradeporte" && (ENTRADA_RAW === "deportistas" || qs.get("f") !== "NAC"))) { ENT = { e: qe, f: qs.get("f") === "NAC" && ENTRADA_RAW !== "deportistas" ? "NAC" : "REG" }; if (ENTRADA_RAW === "deportistas") return; try { sessionStorage.setItem("nwx-entrada", ENT.e + "|" + ENT.f); } catch (x) { /* sin storage */ } return; }
     if (ENTRADA_RAW === "deportistas") return; /* sin evento: se ofrece el selector, no se hereda uno recordado */
     let m = ""; try { m = sessionStorage.getItem("nwx-entrada") || ""; } catch (x) { /* sin storage */ }
     /* Mientras la final no esté publicada (interruptor de behaviors.js), volver sin «f» nunca deja en ella. */
@@ -606,7 +606,7 @@
   const chipsHtml = () => { const n = S.c.inst && INS[S.c.inst] ? INS[S.c.inst].nombre : ""; if (!n) return "";
     return '<div class="nwx-fchips" role="group" aria-label="Filtros activos"><span class="nwx-fchip"><b>' + esc(n) + '</b><button type="button" class="nwx-fchx" data-a="rm" data-t="inst" aria-label="Quitar el filtro de institución: ' + esc(n) + '"><span aria-hidden="true">×</span> Quitar</button></span></div>'; };
   const pagerHtml = (pg, pages) => pages < 2 ? "" : '<nav class="nwx-pager" aria-label="Paginación de deportistas"><button type="button" class="nwx-back-btn" data-a="pg" data-g="' + (pg - 1) + '"' + (pg <= 1 ? " disabled" : "") + '>Anterior</button><span class="nwx-pgx" aria-current="page">Página ' + pg + " de " + pages + '</span><button type="button" class="nwx-back-btn" data-a="pg" data-g="' + (pg + 1) + '"' + (pg >= pages ? " disabled" : "") + ">Siguiente</button></nav>";
-  const evSelHtml = () => ENT.e ? "" : '<nav class="nwx-evsel" aria-label="Elegir evento">' + Object.keys(EVT_LABEL).map((k) => '<a class="nwx-evcard" href="' + urlOf("deportistas") + '?e=' + k + '"><small>Evento</small><b>' + EVT_LABEL[k] + "</b></a>").join("") + "</nav>";
+  const evSelHtml = () => ENT.e ? "" : '<nav class="nwx-evsel" aria-label="Elegir evento">' + Object.keys(EVT_LABEL).filter((k) => k !== "paradeporte").map((k) => '<a class="nwx-evcard" href="' + urlOf("deportistas") + '?e=' + k + '"><small>Evento</small><b>' + EVT_LABEL[k] + "</b></a>").join("") + "</nav>";
   const viewDeportistas = () => {
     const rowsAll = inscriptions(), n = nAth(rowsAll), tot = nAth(inscriptions(ENT.e ? { tipo: ENT.e } : {})), act = Object.keys(S.c).some((k) => k !== "tipo");
     const pages = Math.max(1, Math.ceil(rowsAll.length / PAGE)), pg = Math.min(S.pg, pages);
@@ -696,7 +696,7 @@
     const regionalOpts = () => REGIONALES.filter((r) => !tipoCtx(c) || regTipo(r.id) === tipoCtx(c)).map((r) => ["regional", r.id, r.nombre + (tipoCtx(c) ? "" : " · " + (regTipo(r.id) === "individual" ? "Atletismo" : "Conjuntos"))]);
     const deptoOpts = () => REG[c.regional].departamentoIds.map((id) => ["depto", id, DPT[id].nombre]).sort((a, b) => a[2].localeCompare(b[2], "es"));
     const single = c.deporte && disciplinas(c.deporte).length <= 1;
-    const deporteGroups = Object.keys(EVT_LABEL).map((t) => [EVT_LABEL[t], D.deportes.filter((d) => d.tipo === t).map((d) => ["deporte", d.id, d.nombre])]);
+    const deporteGroups = Object.keys(EVT_LABEL).map((t) => [EVT_LABEL[t], D.deportes.filter((d) => d.tipo === t).map((d) => ["deporte", d.id, d.nombre])]).filter((g) => g[1].length);
     /* En Deportistas el departamento no depende de la regional: salen los presentes entre los deportistas del alcance. */
     const deptsPres = () => { const b = Object.assign({}, c); delete b.depto; const ids = new Set(inscriptions(b).map((r) => r.a.departamentoId).filter(Boolean)); if (c.depto) ids.add(c.depto); return [...ids].filter((id) => DPT[id]).map((id) => ["depto", id, DPT[id].nombre]).sort((a, b2) => a[2].localeCompare(b2[2], "es")); };
     const geo = { title: "Evento", total: 2, n: (c.regional ? 1 : 0) + (c.depto ? 1 : 0), levels: [{ t: "regional", label: "Regional", opts: regionalOpts() }] };

@@ -21,7 +21,10 @@
   const ICO_ATL = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><path d="M9 2h6M12 14l3-3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="12" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="2"/></svg>', ICO_BAL = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M2 12h20M12 2v20M5 5c4 3 4 11 0 14M19 5c-4 3-4 11 0 14" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>';
   /* Primer criterio la fase; debajo, los dos eventos. Cada enlace conserva evento y fase como contexto fijo del explorador. */
   const GRUPOS = [["REG", "Fase regional"], ["NAC", "Fase final nacional"]];
+  const ICO_PARA = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex:none"><circle cx="12" cy="5" r="2" fill="currentColor"/><path d="M12 8v5h4l2 6M12 13l-3 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   const EVENTOS = [["individual", "Deportes individuales", ICO_ATL], ["conjunto", "Deportes de conjunto", ICO_BAL]];
+  /* Paradeportes solo existen en la final (no hay regionales) y /athletes aún no acepta PARADEPORTE. */
+  const EVENTOS_NAC = EVENTOS.concat([["paradeporte", "Paradeportes", ICO_PARA]]);
   const VIOLETA = "var(--color-JIN6-foundations-violeta,#602a8c)";
   const _q = new URLSearchParams(location.search);
   const actual = (lente, e, f) => new RegExp("/" + RUTAS[lente] + "(/index\\.html|/)?$").test(location.pathname) && _q.get("e") === e && (_q.get("f") === "NAC" ? "NAC" : "REG") === f;
@@ -30,7 +33,7 @@
     const off = f === "NAC" && !FINAL_PUBLICADA;
     return (i ? '<div role="separator" aria-orientation="horizontal" style="height:1px;margin:.5rem 0;background:var(--color-divider-soft,#d8dee9)"></div>' : "") +
       `<div role="group" aria-label="${t}"><div class="px-2 pt-2 pb-1">${chip(t)}</div>${off ? `<small class="nwx-fayuda">${FINAL_AYUDA}</small>` : ""}` +
-      EVENTOS.map(([e, n, ic]) => off ? `<div role="menuitem" aria-disabled="true" title="${FINAL_AYUDA}" class="${ITEM} nwx-mi opacity-40 cursor-not-allowed"><span style="display:inline-flex;align-items:center;gap:.5rem">${ic}${n}</span></div>`
+      (f === "NAC" ? EVENTOS_NAC : EVENTOS).map(([e, n, ic]) => off ? `<div role="menuitem" aria-disabled="true" title="${FINAL_AYUDA}" class="${ITEM} nwx-mi opacity-40 cursor-not-allowed"><span style="display:inline-flex;align-items:center;gap:.5rem">${ic}${n}</span></div>`
         : `<a href="${dest(lente, e, f)}" class="${LINK}"${actual(lente, e, f) ? ' aria-current="page"' : ""}><div role="menuitem" class="${ITEM} nwx-mi"><span style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:${VIOLETA}">${ic}</span>${n}</span></div></a>`).join("") + "</div>";
   }).join("");
   /* Deportistas no depende de la fase: solo ofrece el evento. */
