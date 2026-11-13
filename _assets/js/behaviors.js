@@ -40,10 +40,13 @@
     "Eventos y fases": () => fasesHtml("eventos"),
     Resultados: () => fasesHtml("resultados"),
     "Medallería": () => {
-      const med = (m) => `<nao-award kind="medal" metal="${m}" icon="none" edition="colombia" size="20" ribbon="false" shadow="false" animated="false"></nao-award>`;
+      /* Iconos representativos, no medallas: documento para el PDF de 2025 y podio para la vista de 2026. */
+      const ic = (d) => `<span style="display:inline-flex;color:${VIOLETA}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none">${d}</svg></span>`;
+      const DOC = '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>', PODIO = '<path d="M3 21h18M4 21v-7h5v7M9.5 21V9h5v12M15 21v-5h5v5"/><path d="M12 3.5l.7 1.4 1.5.2-1.1 1.1.3 1.5-1.4-.7-1.4.7.3-1.5-1.1-1.1 1.5-.2z"/>';
       const TAG = 'style="margin-left:auto;font-size:.625rem;line-height:1;font-weight:600;letter-spacing:.04em;padding:.125rem .3125rem;border:1px solid var(--color-divider-soft,#d8dee9);border-radius:9999px;color:var(--color-JIN6-text-secondary,#646587)"';
-      return `<a href="${ROOT}public/pdfs/analisis_medallas_comite.pdf" target="_blank" rel="noopener noreferrer" class="${LINK}"><div role="menuitem" class="${ITEM}"><span style="display:inline-flex;align-items:center;gap:.5rem">${med("silver")}2025</span><span ${TAG}>PDF</span></div></a>` +
-        `<a href="${ROOT}medalleria/" class="${LINK}"${/\/medalleria\/?$/.test(location.pathname) ? ' aria-current="page"' : ""}><div role="menuitem" class="${ITEM}"><span style="display:inline-flex;align-items:center;gap:.5rem;font-weight:700">${med("gold")}2026</span></div></a>`;
+      return `<a href="${ROOT}public/pdfs/analisis_medallas_comite.pdf" target="_blank" rel="noopener noreferrer" class="${LINK}"><div role="menuitem" class="${ITEM}"><span style="display:inline-flex;align-items:center;gap:.5rem">${ic(DOC)}2025</span><span ${TAG}>PDF</span></div></a>` +
+        '<div role="separator" aria-orientation="horizontal" style="height:1px;margin:.25rem 0;background:var(--color-divider-soft,#d8dee9)"></div>' +
+        `<a href="${ROOT}medalleria/" class="${LINK}"${/\/medalleria\/?$/.test(location.pathname) ? ' aria-current="page"' : ""}><div role="menuitem" class="${ITEM}"><span style="display:inline-flex;align-items:center;gap:.5rem;font-weight:700">${ic(PODIO)}2026</span></div></a>`;
     },
     "Desarrollo de Juegos": [["Resultados", EXP("resultados")], ["Deportistas", EXP("deportistas")], ["Inscríbete aquí", login, true]],
   };
