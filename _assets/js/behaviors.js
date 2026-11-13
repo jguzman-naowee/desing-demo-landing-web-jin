@@ -95,6 +95,8 @@
       el.className = MENU;
       el.innerHTML = typeof items === "function" ? items() : items.map(([t, h, ext, off]) => off ? `<div role="menuitem" aria-disabled="true" title="${FINAL_AYUDA}" class="${ITEM} opacity-40 cursor-not-allowed flex-col items-start gap-0"><span style="font-weight:700;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t}</span><small class="text-xs">${FINAL_AYUDA}</small></div>` : t === "#h" ? `<div class="px-2 pt-2 pb-1 text-sm font-bold"><span style="display:inline-flex;align-items:center;gap:.375rem;color:var(--color-JIN6-foundations-violeta,#602a8c)">${h}</span></div>` : t === "#d" ? '<div role="separator" aria-orientation="horizontal" style="height:1px;margin:.5rem 0;background:var(--color-divider-soft,#d8dee9)"></div>' :
         `<a href="${h}" class="${LINK}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}><div role="menuitem" class="${ITEM}">${t === "Deportes individuales" || t === "Deportes de conjunto" ? `<span style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t === "Deportes individuales" ? ICO_ATL : ICO_BAL}</span>${t}</span>` : t === "Fase final nacional" ? `<span style="font-weight:700;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t}</span>` : t}</div></a>`).join("");
+      /* Absolute antes de entrar al header (flex): si no, empuja el navbar y el botón se mide corrido. */
+      el.style.position = "absolute";
       (trigger.closest("header") || document.body).appendChild(el);
       place(trigger, el);
       trigger.setAttribute("aria-expanded", "true");
