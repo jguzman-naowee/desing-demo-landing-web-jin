@@ -39,9 +39,17 @@
     Deportistas: eventos,
     "Eventos y fases": () => fasesHtml("eventos"),
     Resultados: () => fasesHtml("resultados"),
+    "Medallería": () => {
+      const med = (m) => `<nao-award kind="medal" metal="${m}" icon="none" edition="colombia" size="20" ribbon="false" shadow="false" animated="false"></nao-award>`;
+      const TAG = 'style="margin-left:auto;font-size:.625rem;line-height:1;font-weight:600;letter-spacing:.04em;padding:.125rem .3125rem;border:1px solid var(--color-divider-soft,#d8dee9);border-radius:9999px;color:var(--color-JIN6-text-secondary,#646587)"';
+      return `<a href="${ROOT}public/pdfs/analisis_medallas_comite.pdf" target="_blank" rel="noopener noreferrer" class="${LINK}"><div role="menuitem" class="${ITEM}"><span style="display:inline-flex;align-items:center;gap:.5rem">${med("silver")}2025</span><span ${TAG}>PDF</span></div></a>` +
+        `<a href="${ROOT}medalleria/" class="${LINK}"${/\/medalleria\/?$/.test(location.pathname) ? ' aria-current="page"' : ""}><div role="menuitem" class="${ITEM}"><span style="display:inline-flex;align-items:center;gap:.5rem;font-weight:700">${med("gold")}2026</span></div></a>`;
+    },
     "Desarrollo de Juegos": [["Resultados", EXP("resultados")], ["Deportistas", EXP("deportistas")], ["Inscríbete aquí", login, true]],
   };
 
+  /* Medallas <nao-award> para el menú de Medallería. */
+  if (!customElements.get("nao-award") && !document.querySelector("script[data-nao-awards]")) { const m = document.createElement("script"); m.type = "module"; m.dataset.naoAwards = ""; m.src = script.src.replace(/behaviors\.js(\?.*)?$/, "awards.js"); document.head.appendChild(m); }
   /* ── Dropdowns (Radix) ─────────────────────────────── */
   let openMenu = null;
   const closeMenu = () => {
@@ -58,6 +66,14 @@
     el.style.top = r.bottom + 4 + "px";
     el.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)) + "px";
   };
+  /* Medallería pasa a desplegable (2025 → PDF, 2026 → vista) y se ubica antes de Deportistas (posición 3); el botón clona el de Deportistas. */
+  document.querySelectorAll("header a").forEach((x) => {
+    if (x.textContent.trim() !== "Medallería 2025") return;
+    const dep = [...document.querySelectorAll("header button[aria-haspopup=menu]")].find((b) => b.textContent.trim() === "Deportistas");
+    if (!dep) return;
+    const btn = dep.cloneNode(true); btn.querySelector("span").firstChild.textContent = "Medallería";
+    dep.before(btn); x.remove();
+  });
   document.querySelectorAll("header button[aria-haspopup=menu]").forEach((trigger) => {
     const label = trigger.textContent.trim();
     const items = MENUS[label];
@@ -89,19 +105,18 @@
     const wrap = document.createElement("div"); wrap.className = "flex items-center gap-2"; wrap.dataset.demo = "1";
     es.replaceWith(wrap); wrap.append(es, demo);
   });
-  /* Noticias, Medallería 2025, Soporte e Inscríbete aquí: se ven igual pero quedan desconectados (sin enlace ni menú). */
-  const INERTES = ["Noticias", "Medallería 2025", "Inscríbete aquí"];
+  /* Noticias, Soporte e Inscríbete aquí: se ven igual pero quedan desconectados (sin enlace ni menú). */
+  const INERTES = ["Noticias", "Inscríbete aquí"];
   document.querySelectorAll("header a").forEach((x) => {
     if (!INERTES.includes(x.textContent.trim())) return;
     const s = document.createElement("span");
     s.className = x.className; s.innerHTML = x.innerHTML; s.setAttribute("aria-disabled", "true"); s.style.pointerEvents = "none";
-    /* El año va como mini badge bajo el nombre para acortar el ítem (DC-358). */
-    if (x.textContent.trim() === "Medallería 2025") {
-      s.style.position = "relative";
-      s.innerHTML = `Medallería<small style="position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:.125rem;font-size:.625rem;font-weight:600;line-height:1;padding:.125rem .375rem;border-radius:9999px;background:var(--color-JIC-violet-900,#28123b);color:#fff">2025</small>`;
-    }
     x.replaceWith(s);
   });
+  /* Sección actual del navbar: negrita y violeta (DC-031). */
+  const SECCION = { calendario: "Eventos y fases", resultados: "Resultados", deportistas: "Deportistas", medalleria: "Medallería", noticias: "Noticias" };
+  const seg = Object.keys(SECCION).find((k) => new RegExp("/" + k + "(/index\\.html|/)?$").test(location.pathname));
+  if (seg) document.querySelectorAll("header .md\\:flex > *").forEach((x) => { if (x.textContent.trim() !== SECCION[seg]) return; x.style.fontWeight = "700"; x.style.color = VIOLETA; x.setAttribute("aria-current", "page"); });
   /* Separación del menú de escritorio a 24px (DC-359). */
   document.querySelectorAll("header .md\\:flex.gap-8").forEach((n) => n.classList.replace("gap-8", "gap-6"));
   document.querySelectorAll("header button[aria-haspopup=menu]").forEach((t) => { if (t.textContent.trim() === "Soporte") { t.setAttribute("aria-disabled", "true"); t.style.pointerEvents = "none"; } });
@@ -143,7 +158,7 @@
               <div data-reg-list class="hidden flex-col items-center gap-3 text-base">${a("Deportes individuales", EXP("deportistas") + "?e=individual")}${a("Deportes de conjunto", EXP("deportistas") + "?e=conjunto")}</div>
             </div>
             ${a("Noticias", href("noticias"))}
-            ${a("Medalleria 2025", ROOT + "public/pdfs/analisis_medallas_comite.pdf", true)}
+            ${a("Medallería 2025", ROOT + "public/pdfs/analisis_medallas_comite.pdf", true)}${a("Medallería 2026", ROOT + "medalleria/")}
             ${a("Preguntas Frecuentes", href("faq"))}${a("Soporte Técnico", href("soporte-tecnico"))}
             <a href="${login}" target="_blank" rel="noopener noreferrer" class="bg-JIN6-foundations-violeta w-full text-NW-gray-50 py-2 px-3 rounded-md text-center text-xl font-medium">Inscríbete aquí</a>
           </div>
