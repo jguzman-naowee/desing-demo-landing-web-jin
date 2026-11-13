@@ -557,6 +557,7 @@ html.overflow-x-hidden,html.overflow-x-hidden body{overflow-x:clip!important;ove
 .nwx-mhead{display:grid;grid-template-columns:72px 1px minmax(0,1fr) 150px minmax(0,1fr) 1px 48px;column-gap:12px;padding:8px 12px;background:#f7f5fb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#646464;border-bottom:1px solid #eee9f4}
 .nwx-mh-l{text-align:right}.nwx-mh-c{text-align:center}
 .nwx-mlist2 .nwx-mrow:nth-of-type(even){background:#faf8fd}.nwx-mlist2 .nwx-mrow:nth-of-type(even):hover{background:#f3eefa}
+.nwx-mlist2 .nwx-mgrp{margin:0;padding:10px 12px 6px;font-size:.9375rem;font-weight:700;color:var(--color-JIN6-text-primary,#282834);background:#fff;border-bottom:1px solid #ece8f3}
 @media (max-width:640px){
 .nwx-mhead{display:none}
 .nwx-mrow,.nwx-mrow.nwx-msolo{display:grid;grid-template-columns:minmax(0,1fr) 52px;row-gap:6px;column-gap:10px;padding:12px 14px 14px;position:relative}
@@ -1174,3 +1175,7 @@ button.nwx-dc:hover{background:rgba(255,255,255,.2)}
 .nwx-brtop{position:absolute;top:0;right:0;display:flex;align-items:center;gap:.75rem}.nwx-brtop .nwx-bver{margin:0}.nwx-brdir{height:2.75rem;box-sizing:border-box}
 .nwx-brbar{display:none}
 @media (max-width:640px){.nwx-brtop{position:static;flex-wrap:wrap;justify-content:flex-end;margin:.5rem 0}}
+/* Tablas de medallería: encabezado pegado bajo el header del sitio al hacer scroll; en móvil la tabla desplaza en horizontal. */
+.nwx-tri{display:inline-flex;vertical-align:middle;margin-right:.4em;line-height:0}.nwx-tri nao-award+nao-award{margin-left:-9px}
+.nwx-stk thead th{background:#fff}
+@media (min-width:701px){.nwx-tbox.nwx-stk{overflow:clip}.nwx-stk thead th{position:sticky;top:var(--nwx-top,0);z-index:2;box-shadow:0 1px 0 var(--color-divider-soft,#d8dee9)}}

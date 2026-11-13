@@ -279,7 +279,8 @@
     }
     /* Con o.only (ficha del deportista) quedan solo los enfrentamientos donde compite él o su institución. */
     const mine = o.only ? [o.only, (ATH[o.only] || {}).institucionId] : null;
-    const es = (ENC[p.id] || []).filter((e) => e.participantes.length && e.id !== o.exId && (!mine || e.participantes.some((x) => mine.includes(x.refId))));
+    const es = (ENC[p.id] || []).filter((e) => e.participantes.length && e.id !== o.exId && (!mine || e.participantes.some((x) => mine.includes(x.refId))))
+      .sort((a, b) => String(a.grupo || "").localeCompare(String(b.grupo || "")));
     if (es.length && o.part !== "tables") {
       const ronda = (e) => ((p.rondas || []).filter((x) => x.id === e.rondaId)[0] || {}).nombre || "";
       const head = (e) => [ronda(e), e.grupo ? "Grupo " + e.grupo : ""].filter(Boolean).join(" - ") || "Enfrentamientos";
@@ -357,9 +358,9 @@
   /* El partido o la serie entra si algún participante es la institución (o un deportista suyo). */
   const encIn = (e) => !S.c.inst || e.participantes.some((x) => instOfP(x) === S.c.inst);
   const encsOf = (p) => { const ro = (e) => ((p.rondas || []).filter((x) => x.id === e.rondaId)[0] || {}).orden || 0;
-    return (ENC[p.id] || []).filter((e) => e.participantes.length).sort((a, b) => ro(a) - ro(b) || (a.numero || 0) - (b.numero || 0)); };
+    return (ENC[p.id] || []).filter((e) => e.participantes.length).sort((a, b) => ro(a) - ro(b) || String(a.grupo || "").localeCompare(String(b.grupo || "")) || (a.numero || 0) - (b.numero || 0)); };
   const isTeam = (e) => e.participantes.length === 2 && e.participantes[0].tipo === "equipo";
-  const elab = (e) => (isTeam(e) ? "Partido " : "Serie ") + (e.numero || "");
+  const elab = (e) => (isTeam(e) ? "Partido " : "Serie ") + (isTeam(e) && e.grupo ? e.grupo + "-" : "") + (e.numero || "");
   const rondaOf = (p, e) => ((p.rondas || []).filter((x) => x.id === e.rondaId)[0] || {}).nombre || "";
   const dated = (p) => (ENC[p.id] || []).some((e) => e.fecha);
   /* Sin regiones (la final) no hay tarjetas de regional: la fase entra directo a Deportes. */
@@ -401,7 +402,7 @@
     const rows = Object.keys(t).sort((a, b) => t[b][0] - t[a][0] || t[b][1] - t[a][1] || t[b][2] - t[a][2] || DPT[a].nombre.localeCompare(DPT[b].nombre, "es"));
     if (!rows.length) return "";
     const th = (i, n) => '<th scope="col" class="c"><span class="nwx-gsw" aria-hidden="true">' + '<nao-award kind="medal" metal="' + METALES[i] + '" icon="none" edition="colombia" size="18" ribbon="false" shadow="false" animated="false"></nao-award></span>' + n + "</th>";
-    return fxCard("Medallería por departamento", '<div class="nwx-tbox nwx-tscroll"><table class="nwx-rtab"><thead><tr><th scope="col">#</th><th scope="col">Departamento</th>' + th(0, "Oro") + th(1, "Plata") + th(2, "Bronce") + '<th scope="col" class="c">Total</th></tr></thead><tbody>' +
+    return fxCard("Medallería por departamento", '<div class="nwx-tbox nwx-tscroll nwx-stk"><table class="nwx-rtab"><thead><tr><th scope="col">#</th><th scope="col">Departamento</th>' + th(0, "Oro") + th(1, "Plata") + th(2, "Bronce") + '<th scope="col" class="c">' + '<span class="nwx-tri" aria-hidden="true">' + [0, 1, 2].map((i) => '<nao-award kind="medal" metal="' + METALES[i] + '" icon="none" edition="colombia" size="18" ribbon="false" shadow="false" animated="false"></nao-award>').join('') + '</span>Total' + '</th></tr></thead><tbody>' +
       rows.map((d, n) => "<tr><td>" + rank(n + 1) + '</td><td><span class="nwx-who"><img class="nwx-flag" src="../public/department_flags/' + slugOf(d) + '.png" alt="" width="22" height="15">' + esc(DPT[d].nombre) + "</span></td>" + t[d].map((v) => '<td class="c">' + v + "</td>").join("") + '<td class="c"><b>' + (t[d][0] + t[d][1] + t[d][2]) + "</b></td></tr>").join("") + "</tbody></table></div>", "nwx-flat");
   };
   /* Convenciones de la grilla: se arman con las filas que de verdad se pintaron, así nunca dicen algo que no está. */
@@ -456,7 +457,7 @@
     const mob = (x, i, n) => '<span class="nwx-mmq">' + depBadge(x.refId) + nm(x, i) + '</span><b class="nwx-mmb' + cls(i) + '">' + (n != null && has ? n : "–") + "</b>";
     return '<div class="nwx-mhd" role="group" aria-label="' + esc(al) + '"><span class="nwx-ml">' + nm(ps[0], 0) + depBadge(ps[0].refId) + '</span><span class="nwx-mbox"><span class="nwx-mu">' + (has && unit ? unit : "") + '</span><span class="nwx-mscore">' + mid + "</span>" + tag + '</span><span class="nwx-maway">' + depBadge(ps[1].refId) + nm(ps[1], 1) + "</span>"
       + '<span class="nwx-mtop" aria-hidden="true">' + (has && unit ? '<span class="nwx-mu">' + unit + "</span>" : "<span></span>") + tag + '</span><span class="nwx-mm1" aria-hidden="true">' + mob(ps[0], 0, n0) + '</span><span class="nwx-mm2" aria-hidden="true">' + mob(ps[1], 1, n1) + "</span></div>"; };
-  const mlist = (es, p) => { const solo = !es.some(isTeam); return '<div class="nwx-mlist2"><div class="nwx-mhead" aria-hidden="true"><span>' + (solo ? "Serie" : "Partido") + "</span><span></span>" + (solo ? '<span>Participantes</span><span class="nwx-mh-c">Estado</span>' : '<span class="nwx-mh-l">Local</span><span class="nwx-mh-c">Marcador</span><span class="nwx-mh-v">Visitante</span>') + (RES ? "<span></span><span></span>" : "") + "</div>" + es.map((e) => mrow(e, p)).join("") + "</div>"; };
+  const mlist = (es, p) => { const solo = !es.some(isTeam); return '<div class="nwx-mlist2"><div class="nwx-mhead" aria-hidden="true"><span>' + (solo ? "Serie" : "Partido") + "</span><span></span>" + (solo ? '<span>Participantes</span><span class="nwx-mh-c">Estado</span>' : '<span class="nwx-mh-l">Local</span><span class="nwx-mh-c">Marcador</span><span class="nwx-mh-v">Visitante</span>') + (RES ? "<span></span><span></span>" : "") + "</div>" + (() => { const mix = new Set(es.map((e) => e.grupo).filter(Boolean)).size > 1; let g = null; return es.map((e) => { const t = mix && e.grupo !== g ? (g = e.grupo, '<p class="nwx-mgrp">Grupo ' + esc(e.grupo) + "</p>") : ""; return t + mrow(e, p); }).join(""); })() + "</div>"; };
   /* Tablas del resultado propio del nodo (grupo o prueba), siempre en bloque aparte de la lista de hijos. */
   const tablesOf = (p, grupo) => { const r = p.resultado; if (!r) return "";
     const q = grupo && r.tipo === "posiciones" ? Object.assign({}, p, { resultado: Object.assign({}, r, { tablas: r.tablas.filter((t) => t.grupo === grupo) }) }) : p;
