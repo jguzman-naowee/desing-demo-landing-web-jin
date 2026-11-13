@@ -1131,7 +1131,7 @@ button.nwx-dc:hover{background:rgba(255,255,255,.2)}
 .nwx-selw .nwx-sel:disabled{background-color:#f4f4f7;cursor:not-allowed;color:inherit;opacity:1}
 
 /* Tabla de deportistas a ras de la tarjeta, con cebra y resalte de la celda bajo el cursor (DC-005) */
-.nwx-card--flush{padding:0;overflow:hidden}
+.nwx-card--flush{padding:0;overflow:clip}
 .nwx-card--flush .nwx-trow:nth-child(odd){background:#f7f7fb}
 .nwx-card--flush .nwx-trow>*{border-radius:.5rem;padding:.25rem .5rem;margin:-.25rem -.5rem}
 .nwx-card--flush .nwx-trow>*:hover{background:#ece6f5}
