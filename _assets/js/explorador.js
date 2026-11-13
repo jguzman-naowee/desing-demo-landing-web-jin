@@ -42,7 +42,7 @@
     const qs = new URLSearchParams(location.search), qe = qs.get("e");
     /* «Fase final» no lleva evento: una sola vista con todos los deportes de la final. */
     if (!qe && qs.get("f") === "NAC" && ENTRADA_RAW !== "deportistas" && window.NWX_FINAL_PUBLICADA) { ENT = { e: "", f: "NAC" }; return; }
-    if (EVT_LABEL[qe] && !(qe === "paradeporte" && (ENTRADA_RAW === "deportistas" || qs.get("f") !== "NAC"))) { ENT = { e: qe, f: qs.get("f") === "NAC" && ENTRADA_RAW !== "deportistas" ? "NAC" : "REG" }; if (ENTRADA_RAW === "deportistas") return; try { sessionStorage.setItem("nwx-entrada", ENT.e + "|" + ENT.f); } catch (x) { /* sin storage */ } return; }
+    if (EVT_LABEL[qe] && !(qe === "paradeporte" && qs.get("f") !== "NAC")) { ENT = { e: qe, f: qs.get("f") === "NAC" && ENTRADA_RAW !== "deportistas" ? "NAC" : "REG" }; if (ENTRADA_RAW === "deportistas") return; try { sessionStorage.setItem("nwx-entrada", ENT.e + "|" + ENT.f); } catch (x) { /* sin storage */ } return; }
     if (ENTRADA_RAW === "deportistas") return; /* sin evento: se ofrece el selector, no se hereda uno recordado */
     let m = ""; try { m = sessionStorage.getItem("nwx-entrada") || ""; } catch (x) { /* sin storage */ }
     /* Mientras la final no esté publicada (interruptor de behaviors.js), volver sin «f» nunca deja en ella. */
@@ -593,10 +593,12 @@
   const PERSON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="#9a9aa8" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8z"/></svg>';
   /* Deportistas filtra sobre la persona: departamento propio e institución (propia o de la nómina de su equipo). */
   const athInst = (a, p, inst) => a.institucionId === inst || (p.nominas || []).some((n) => n.refId === inst && n.deportistas.includes(a.id));
+  /* Paradeportes de ejemplo: única final de ejemplo que Deportistas sí muestra, clasificada por el tipo del deporte (no por prefijo). */
+  const PARA_DEMO = (p) => DEMO && DEPO[p.deporteId].tipo === "paradeporte";
   const inscriptions = (c0) => {
     const c = c0 || S.c, out = [];
     /* Todas las fases reales; la final de ejemplo nunca entra aquí. */
-    D.participaciones.forEach((x) => { const p = PBY[x.pruebaId]; if (x.tipo === "deportista" && ATH[x.refId] && p && !p.ejemplo && ok(p, c)) out.push({ a: ATH[x.refId], p }); });
+    D.participaciones.forEach((x) => { const p = PBY[x.pruebaId]; if (x.tipo === "deportista" && ATH[x.refId] && p && (!p.ejemplo || PARA_DEMO(p)) && ok(p, c)) out.push({ a: ATH[x.refId], p }); });
     /* Deportes de conjunto: los deportistas salen de la nómina publicada de cada equipo. */
     D.pruebas.forEach((p) => { if (!p.ejemplo && p.nominas && ok(p, c)) p.nominas.forEach((n) => n.deportistas.forEach((id) => { if (ATH[id] && !out.some((o) => o.a.id === id && o.p.id === p.id)) out.push({ a: ATH[id], p }); })); });
     return out.filter(({ a, p }) => (!c.depto || a.departamentoId === c.depto) && (!c.inst || athInst(a, p, c.inst))).sort((x, y) => x.a.nombre.localeCompare(y.a.nombre, "es"));
@@ -606,7 +608,7 @@
   const chipsHtml = () => { const n = S.c.inst && INS[S.c.inst] ? INS[S.c.inst].nombre : ""; if (!n) return "";
     return '<div class="nwx-fchips" role="group" aria-label="Filtros activos"><span class="nwx-fchip"><b>' + esc(n) + '</b><button type="button" class="nwx-fchx" data-a="rm" data-t="inst" aria-label="Quitar el filtro de institución: ' + esc(n) + '"><span aria-hidden="true">×</span> Quitar</button></span></div>'; };
   const pagerHtml = (pg, pages) => pages < 2 ? "" : '<nav class="nwx-pager" aria-label="Paginación de deportistas"><button type="button" class="nwx-back-btn" data-a="pg" data-g="' + (pg - 1) + '"' + (pg <= 1 ? " disabled" : "") + '>Anterior</button><span class="nwx-pgx" aria-current="page">Página ' + pg + " de " + pages + '</span><button type="button" class="nwx-back-btn" data-a="pg" data-g="' + (pg + 1) + '"' + (pg >= pages ? " disabled" : "") + ">Siguiente</button></nav>";
-  const evSelHtml = () => ENT.e ? "" : '<nav class="nwx-evsel" aria-label="Elegir evento">' + Object.keys(EVT_LABEL).filter((k) => k !== "paradeporte").map((k) => '<a class="nwx-evcard" href="' + urlOf("deportistas") + '?e=' + k + '"><small>Evento</small><b>' + EVT_LABEL[k] + "</b></a>").join("") + "</nav>";
+  const evSelHtml = () => ENT.e ? "" : '<nav class="nwx-evsel" aria-label="Elegir evento">' + Object.keys(EVT_LABEL).filter((k) => k !== "paradeporte" || window.NWX_FINAL_PUBLICADA).map((k) => '<a class="nwx-evcard" href="' + urlOf("deportistas") + '?e=' + k + (k === "paradeporte" ? "&f=NAC" : "") + '"><small>Evento</small><b>' + EVT_LABEL[k] + "</b></a>").join("") + "</nav>";
   const viewDeportistas = () => {
     const rowsAll = inscriptions(), n = nAth(rowsAll), tot = nAth(inscriptions(ENT.e ? { tipo: ENT.e } : {})), act = Object.keys(S.c).some((k) => k !== "tipo");
     const pages = Math.max(1, Math.ceil(rowsAll.length / PAGE)), pg = Math.min(S.pg, pages);
@@ -696,10 +698,13 @@
     const regionalOpts = () => REGIONALES.filter((r) => !tipoCtx(c) || regTipo(r.id) === tipoCtx(c)).map((r) => ["regional", r.id, r.nombre + (tipoCtx(c) ? "" : " · " + (regTipo(r.id) === "individual" ? "Atletismo" : "Conjuntos"))]);
     const deptoOpts = () => REG[c.regional].departamentoIds.map((id) => ["depto", id, DPT[id].nombre]).sort((a, b) => a[2].localeCompare(b[2], "es"));
     const single = c.deporte && disciplinas(c.deporte).length <= 1;
-    const deporteGroups = Object.keys(EVT_LABEL).map((t) => [EVT_LABEL[t], D.deportes.filter((d) => d.tipo === t).map((d) => ["deporte", d.id, d.nombre])]).filter((g) => g[1].length);
+    /* Deportistas y Paradeportes ofrecen solo los deportes de su evento; Paradeportes no tiene regionales. */
+    const tiposDep = ENT.e && (!LENS || ENT.e === "paradeporte") ? [ENT.e] : Object.keys(EVT_LABEL).filter((t) => t !== "paradeporte" || !FASE.regiones);
+    const deporteGroups = tiposDep.map((t) => [EVT_LABEL[t], D.deportes.filter((d) => d.tipo === t).map((d) => ["deporte", d.id, d.nombre])]).filter((g) => g[1].length);
     /* En Deportistas el departamento no depende de la regional: salen los presentes entre los deportistas del alcance. */
     const deptsPres = () => { const b = Object.assign({}, c); delete b.depto; const ids = new Set(inscriptions(b).map((r) => r.a.departamentoId).filter(Boolean)); if (c.depto) ids.add(c.depto); return [...ids].filter((id) => DPT[id]).map((id) => ["depto", id, DPT[id].nombre]).sort((a, b2) => a[2].localeCompare(b2[2], "es")); };
-    const geo = { title: "Evento", total: 2, n: (c.regional ? 1 : 0) + (c.depto ? 1 : 0), levels: [{ t: "regional", label: "Regional", opts: regionalOpts() }] };
+    const sinReg = ENT.e === "paradeporte";
+    const geo = { title: "Evento", total: sinReg ? 1 : 2, n: (c.regional ? 1 : 0) + (c.depto ? 1 : 0), levels: sinReg ? [] : [{ t: "regional", label: "Regional", opts: regionalOpts() }] };
     if (!LENS) geo.levels.push({ t: "depto", label: "Departamento", opts: deptsPres() });
     else if (c.regional) geo.levels.push({ t: "depto", label: "Departamento", opts: deptoOpts() });
     const spTot = single ? 1 : 2;
@@ -739,7 +744,7 @@
     if (lv.seg) return segHtml(lv);
     if (lv.t === "cat" && lv.opts.length === 1) return fixedSel(lv.label, lv.opts[0][2]);
     const cur = S.c[lv.t], opt = (x) => '<option value="' + x[0] + ":" + esc(x[1]) + '"' + (cur === x[1] ? " selected" : "") + ">" + esc(x[2]) + "</option>";
-    const body = (lv.groups ? lv.groups.map((g) => '<optgroup label="' + esc(g[0]) + '">' + g[1].map(opt).join("") + "</optgroup>").join("") : lv.opts.map(opt).join(""));
+    const body = (lv.groups && lv.groups.length > 1 ? lv.groups.map((g) => '<optgroup label="' + esc(g[0]) + '">' + g[1].map(opt).join("") + "</optgroup>").join("") : (lv.groups ? (lv.groups[0] || ["", []])[1] : lv.opts).map(opt).join(""));
     return '<div class="nwx-selw' + (cur && !fixedReg(lv) ? " has-x" : "") + '"><select class="nwx-sel" data-sel aria-label="' + esc(lv.label) + '">' + (cur ? (fixedReg(lv) ? "" : '<option value="rm:' + lv.t + '">Todos</option>') : '<option value="" selected disabled>Elegir ' + esc(lv.label) + "…</option>") + body + "</select>" +
       (cur && !fixedReg(lv) ? '<button type="button" class="nwx-selx" data-a="rm" data-t="' + lv.t + '" aria-label="Limpiar ' + esc(lv.label) + '"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>' : "") + "</div>";
   };

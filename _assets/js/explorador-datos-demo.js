@@ -12,6 +12,6 @@ window.EXPLORADOR_DEMO = {"pruebas":[{"id":"pn1","faseId":"nacionales","regional
   ].forEach(([id, dep, disc, sexo, fecha, marcas, ini]) => {
     const n = +ini.slice(2), filas = marcas.map((m, i) => ({ puesto: i + 1, refId: "an" + (n + i), marca: m, ...(M[i] ? { medalla: M[i] } : {}) }));
     D.pruebas.push({ id, faseId: "nacionales", regionalId: null, deporteId: dep, disciplina: disc, categoria: "Juvenil", sexo, estado: "finalizada", fechaInicio: fecha, fechaFin: fecha, resultado: { tipo: "clasificacion", filas }, rondas: [{ id: id + "r1", nombre: "Final directa", orden: 1 }], ejemplo: true });
-    filas.forEach((f) => D.participaciones.push({ pruebaId: id, tipo: "deportista", refId: f.refId, ejemplo: true }));
+    filas.forEach((f) => D.participaciones.push({ pruebaId: id, tipo: "deportista", refId: f.refId }));
   });
 })();

@@ -37,7 +37,7 @@
         : `<a href="${dest(lente, e, f)}" class="${LINK}"${actual(lente, e, f) ? ' aria-current="page"' : ""}><div role="menuitem" class="${ITEM} nwx-mi"><span style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:${VIOLETA}">${ic}</span>${n}</span></div></a>`).join("") + "</div>";
   }).join("");
   /* Deportistas no depende de la fase: solo ofrece el evento. */
-  const eventos = [["Deportes individuales", EXP("deportistas") + "?e=individual"], ["#d"], ["Deportes de conjunto", EXP("deportistas") + "?e=conjunto"]];
+  const eventos = [["Deportes individuales", EXP("deportistas") + "?e=individual"], ["#d"], ["Deportes de conjunto", EXP("deportistas") + "?e=conjunto"]].concat(FINAL_PUBLICADA ? [["#d"], ["Paradeportes", EXP("deportistas") + "?e=paradeporte&f=NAC", false, false, "para"]] : []);
   const MENUS = {
     Deportistas: eventos,
     "Eventos y fases": () => fasesHtml("eventos"),
@@ -94,7 +94,7 @@
       el.dataset.state = "open";
       el.className = MENU;
       el.innerHTML = typeof items === "function" ? items() : items.map(([t, h, ext, off]) => off ? `<div role="menuitem" aria-disabled="true" title="${FINAL_AYUDA}" class="${ITEM} opacity-40 cursor-not-allowed flex-col items-start gap-0"><span style="font-weight:700;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t}</span><small class="text-xs">${FINAL_AYUDA}</small></div>` : t === "#h" ? `<div class="px-2 pt-2 pb-1 text-sm font-bold"><span style="display:inline-flex;align-items:center;gap:.375rem;color:var(--color-JIN6-foundations-violeta,#602a8c)">${h}</span></div>` : t === "#d" ? '<div role="separator" aria-orientation="horizontal" style="height:1px;margin:.5rem 0;background:var(--color-divider-soft,#d8dee9)"></div>' :
-        `<a href="${h}" class="${LINK}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}><div role="menuitem" class="${ITEM}">${t === "Deportes individuales" || t === "Deportes de conjunto" ? `<span style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t === "Deportes individuales" ? ICO_ATL : ICO_BAL}</span>${t}</span>` : t === "Fase final nacional" ? `<span style="font-weight:700;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t}</span>` : t}</div></a>`).join("");
+        `<a href="${h}" class="${LINK}"${ext ? ' target="_blank" rel="noopener noreferrer"' : ""}><div role="menuitem" class="${ITEM}">${t === "Deportes individuales" || t === "Deportes de conjunto" || t === "Paradeportes" ? `<span style="display:inline-flex;align-items:center;gap:.5rem"><span style="display:inline-flex;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t === "Deportes individuales" ? ICO_ATL : t === "Paradeportes" ? ICO_PARA : ICO_BAL}</span>${t}</span>` : t === "Fase final nacional" ? `<span style="font-weight:700;color:var(--color-JIN6-foundations-violeta,#602a8c)">${t}</span>` : t}</div></a>`).join("");
       /* Absolute antes de entrar al header (flex): si no, empuja el navbar y el botón se mide corrido. */
       el.style.position = "absolute";
       (trigger.closest("header") || document.body).appendChild(el);
@@ -163,7 +163,7 @@
             ${movil("Resultados", "resultados")}
             <div class="flex flex-col items-center gap-3">
               <button type="button" data-reg aria-expanded="false" class="${L}">Deportistas ▾</button>
-              <div data-reg-list class="hidden flex-col items-center gap-3 text-base">${a("Deportes individuales", EXP("deportistas") + "?e=individual")}${a("Deportes de conjunto", EXP("deportistas") + "?e=conjunto")}</div>
+              <div data-reg-list class="hidden flex-col items-center gap-3 text-base">${a("Deportes individuales", EXP("deportistas") + "?e=individual")}${a("Deportes de conjunto", EXP("deportistas") + "?e=conjunto")}${FINAL_PUBLICADA ? a("Paradeportes", EXP("deportistas") + "?e=paradeporte&f=NAC") : ""}</div>
             </div>
             ${a("Noticias", href("noticias"))}
             ${a("Medallería 2025", ROOT + "public/pdfs/analisis_medallas_comite.pdf", true)}${a("Medallería 2026", ROOT + "medalleria/")}
